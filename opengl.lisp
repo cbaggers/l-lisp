@@ -506,25 +506,6 @@
                        (progn
                          (xlib-gl:xputbackevent display event)
                          (return)))))
-              #+nil
-              (do ((done nil))
-                  (done)
-                (if (zerop (xlib-gl:xeventsqueued display event))
-                    (setq done t)
-                    (progn
-                      (xlib-gl:xnextevent display event)
-                      (let ((event-type (xlib-gl:xanyevent-type event)))
-                        ;; if we have the same type of event
-                        (if (and (eq event-type xlib-gl:motionnotify)
-                                 (= (xlib-gl:xmotionevent-state event) state))
-                            ;; then gobble it
-                            (progn
-                              (setq new-xpos (xlib-gl:xmotionevent-x_root event))
-                              (setq new-ypos (xlib-gl:xmotionevent-y_root event)))
-                            ;; else put it back and jump out of the loop
-                            (progn
-                              (xlib-gl:xputbackevent display event)
-                              (setq done t)))))))
               (when debug (format t "Motion: state ~A  pos ~A ~A~%"
                                   state xpos ypos))
               (when xpos
@@ -658,24 +639,6 @@
          (xlib-gl:xnextevent display event))
       (xlib-gl:free-xevent event))))
 
-;; Multiprocessing
-(defmacro with-new-process ((&key (name "anonymous-process")) &body body)
-  (declare (ignorable name))
-  #+(and cmu mp)
-  `(let ()
-     ;;(format t "with-new-process~%") (force-output)
-     ;;(mp:process-yield)
-     ;;(format t "with-new-process 2~%") (force-output)
-     (mp:make-process (lambda () ,@body) :name ,name)
-     ;;(format t "with-new-process 3~%") (force-output)
-     ;;(mp:process-yield)
-     ;;(format t "with-new-process 4~%") (force-output)
-     ;;'done
-     )
-  #-(and cmu mp)
-  `(progn ,@body))
-
-(defvar *process-counter* -1)
 
 (defun gl-animation (ls
                      &key
@@ -702,10 +665,6 @@
                               :frame-list (copy-tree frames)
                               :frame-delay frame-delay)))
     (rewrite ls (extract-framelist (lw-frame-list l-win)))
-    ;; use multiprocessing if available
-    ;;    (with-new-process (:name (format nil "l-lisp-process-~A"
-    ;;                     (incf *process-counter*)))
-    ;;      (gl-show-geometry l-win :width width :limits limits))))
     (gl-show-geometry l-win :width width :limits limits
                       :window-width window-width
                       :window-height window-height)))

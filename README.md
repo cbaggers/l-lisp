@@ -2,6 +2,16 @@
 
 This project inspired me before I knew what lisp was, I'd love to get it running on top of some of the more portable libraries the lisp games folks are using these days. I'm not actively working on this but I have just pushed it here as a 'one day' project or maybe just to look at it and smile.
 
+Currently all I have tried (on linux) was:
+
+```
+LSX> (timed-preview (make-instance 'gtree))
+```
+
+and it worked!
+
+I have commented out the gl stuff for now so this is asdf loadable
+
 # Original Docs (markdownified)
 
 ## L-Lisp: Lindenmayer systems in Lisp

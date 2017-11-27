@@ -174,16 +174,16 @@ or NIL if there is no unmatched ']'."
   (let ((i pos)
         (len (length rstring)))
     (loop
-     (when (>= i len)
-       (return nil))
-     (let* ((module (svref rstring i))
-            (symbol (if (consp module) (first module) module)))
-       (cond ((eql symbol '\[)
-              (setq i (1+ (skip-to-right-bracket rstring (1+ i)))))
-             ((eql symbol '\])
-              (return i))
-             (t
-              (incf i)))))))
+       (when (>= i len)
+         (return nil))
+       (let* ((module (svref rstring i))
+              (symbol (if (consp module) (first module) module)))
+         (cond ((eql symbol '\[)
+                (setq i (1+ (skip-to-right-bracket rstring (1+ i)))))
+               ((eql symbol '\])
+                (return i))
+               (t
+                (incf i)))))))
 
 (defmethod rewrite1 ((ls l-system))
   "Do a single rewrite of the L-system.
@@ -206,20 +206,20 @@ This includes a decomposition rewrite if DECOMPOSITION-DEPTH > 0."
         (when (member module '(\% :cut-symbol) :test #'eq)
           (let ((jump-pos (skip-to-right-bracket oldstr pos)))
             (if jump-pos
-              (setf pos jump-pos
-                    (pos ls) jump-pos
-                    module (svref oldstr pos))
-              (return))))
+                (setf pos jump-pos
+                      (pos ls) jump-pos
+                      module (svref oldstr pos))
+                (return))))
         (setf (current-module ls) module)
         (let ((answer (l-productions ls)))
           (if (eq answer t)
-            ;; T means identity production (no change)
-            (buffer-push module newstr)
-            ;; otherwise we should have a list
-            (dolist (obj answer)
-              ;; add all non-nil objects to new rstring
-              (unless (null obj)
-                (buffer-push obj newstr)))))))
+              ;; T means identity production (no change)
+              (buffer-push module newstr)
+              ;; otherwise we should have a list
+              (dolist (obj answer)
+                ;; add all non-nil objects to new rstring
+                (unless (null obj)
+                  (buffer-push obj newstr)))))))
     ;; convert buffer to simple-vector
     (setf (rstring ls) (buffer->vector newstr))
     ;; set some other slots
@@ -247,15 +247,15 @@ Chomsky grammar rewriting)."
                         (type fixnum max-depth)
                         (type compiled-function production-func))
                (if (= max-depth 0)
-                 (progn (when (not (warning-msg ls))
-                          (setf (warning-msg ls) "Maximum depth reached."))
-                        (buffer-push (current-module ls) newstring))
-                 (let ((x (funcall production-func ls)))
-                   (if (eq x t)
-                     (buffer-push (current-module ls) newstring)
-                     (dolist (obj x)
-                       (setf (current-module ls) obj)
-                       (expand-module (1- max-depth))))))))
+                   (progn (when (not (warning-msg ls))
+                            (setf (warning-msg ls) "Maximum depth reached."))
+                          (buffer-push (current-module ls) newstring))
+                   (let ((x (funcall production-func ls)))
+                     (if (eq x t)
+                         (buffer-push (current-module ls) newstring)
+                         (dolist (obj x)
+                           (setf (current-module ls) obj)
+                           (expand-module (1- max-depth))))))))
       (dotimes (pos strlength)
         (declare (optimize (speed 3) (safety 0))
                  (type fixnum pos))
@@ -288,29 +288,29 @@ Chomsky grammar rewriting)."
 (defun next-module-left (ls)
   (declare (optimize (speed 3) (safety 0) (debug 0)))
   (if (= (the fixnum (context-pos ls)) 0)
-    :empty
-    (svref (rstring ls) (decf (the fixnum (context-pos ls))))))
+      :empty
+      (svref (rstring ls) (decf (the fixnum (context-pos ls))))))
 
 (defun next-context-module-left (ls ignore-list consider-list)
   "Find next context module to the left, ignoring symbols and skipping
 brackets as necessary."
   (if consider-list
-    (let ((new-consider-list (cons :empty consider-list)))
-      (do* ((module (next-module-left ls)
-                    (next-module-left ls))
-            (symbol (if (consp module) (first module) module)
-                    (if (consp module) (first module) module)))
-          ((member symbol new-consider-list) module)
-        (if (eq symbol '\]) ;; skip brackets
-          (setf (context-pos ls) (second module)))))
-    (let ((new-ignore-list (append '(\[ \]) ignore-list)))
-      (do* ((module (next-module-left ls)
-                    (next-module-left ls))
-            (symbol (if (consp module) (first module) module)
-                    (if (consp module) (first module) module)))
-          ((not (member symbol new-ignore-list)) module)
-        (if (eq symbol '\]) ;; skip brackets
-          (setf (context-pos ls) (second module)))))))
+      (let ((new-consider-list (cons :empty consider-list)))
+        (do* ((module (next-module-left ls)
+                      (next-module-left ls))
+              (symbol (if (consp module) (first module) module)
+                      (if (consp module) (first module) module)))
+             ((member symbol new-consider-list) module)
+          (if (eq symbol '\]) ;; skip brackets
+              (setf (context-pos ls) (second module)))))
+      (let ((new-ignore-list (append '(\[ \]) ignore-list)))
+        (do* ((module (next-module-left ls)
+                      (next-module-left ls))
+              (symbol (if (consp module) (first module) module)
+                      (if (consp module) (first module) module)))
+             ((not (member symbol new-ignore-list)) module)
+          (if (eq symbol '\]) ;; skip brackets
+              (setf (context-pos ls) (second module)))))))
 
 (defun match-context-left (ls context-pattern ignore consider)
   "If the symbols and lengths in context-pattern match, return t and a
@@ -322,32 +322,32 @@ parameter list."
              (params (if (consp module) (rest module) nil))
              (symbol (if params (first module) module)))
         (if (and (eql symbol (car obj)) (= (length params) (cdr obj)))
-          (setf param-list (append params param-list))
-          (return (values nil nil)))))))
+            (setf param-list (append params param-list))
+            (return (values nil nil)))))))
 
 (declaim (inline next-module-right))
 (defun next-module-right (ls)
   (declare (optimize (speed 3) (safety 0) (debug 0)))
   (if (>= (the fixnum (context-pos ls))
           (the fixnum (1- (length (the simple-array (rstring ls))))))
-    :empty
-    (svref (rstring ls) (incf (the fixnum (context-pos ls))))))
+      :empty
+      (svref (rstring ls) (incf (the fixnum (context-pos ls))))))
 
 (defun next-context-module-right (ls ignore-list consider-list)
   "Find next context module to the right, ignoring symbols as necessary,
 but not skipping brackets."
   (if consider-list
-    (let ((new-consider-list (append '(:empty \[ \]) consider-list)))
+      (let ((new-consider-list (append '(:empty \[ \]) consider-list)))
+        (do* ((module (next-module-right ls)
+                      (next-module-right ls))
+              (symbol (if (consp module) (first module) module)
+                      (if (consp module) (first module) module)))
+             ((member symbol new-consider-list) module)))
       (do* ((module (next-module-right ls)
                     (next-module-right ls))
             (symbol (if (consp module) (first module) module)
                     (if (consp module) (first module) module)))
-          ((member symbol new-consider-list) module)))
-    (do* ((module (next-module-right ls)
-                  (next-module-right ls))
-          (symbol (if (consp module) (first module) module)
-                  (if (consp module) (first module) module)))
-        ((not (member symbol ignore-list)) module))))
+           ((not (member symbol ignore-list)) module))))
 
 (defun match-context-right (ls context-pattern ignore consider)
   "If the symbols, lengths and brackets in context-pattern match, return a
@@ -369,14 +369,14 @@ parameter list and t."
             (cond ((eql (car obj) '\])
                    ;; skip to unmatched ], or fail if there is none
                    (if (mstack-empty?)
-                     (return-from match-context-right (values nil nil))
-                     (setf (context-pos ls) (mstack-pop))))
+                       (return-from match-context-right (values nil nil))
+                       (setf (context-pos ls) (mstack-pop))))
                   ((eql (car obj) '\[)
                    ;; if brackets match, then push end position on
                    ;; mstack, else fail
                    (if (eql symbol '\[)
-                     (mstack-push (first params))
-                     (return-from match-context-right (values nil nil))))
+                       (mstack-push (first params))
+                       (return-from match-context-right (values nil nil))))
                   ((and (eql symbol (car obj))
                         (= (length params) (cdr obj)))
                    ;; found matching module, add params to list
@@ -395,14 +395,14 @@ parameter list and t."
                            (homomorphism-rewrite ls)
                            (rstring ls))))
     (setf (geometry ls)
-      (turtle-interpret turtle-string
-                        :angle-increment (angle-increment ls)))))
+          (turtle-interpret turtle-string
+                            :angle-increment (angle-increment ls)))))
 
 (defmethod rewrite-and-preview ((ls l-system) filename
                                 &key
-                                (depth (depth ls))
-                                (width 0.3)
-                                (sphere-width 0.1))
+                                  (depth (depth ls))
+                                  (width 0.3)
+                                  (sphere-width 0.1))
   "Rewrite, create geometry, output EPS file and view it in Ghostview."
   (rewrite ls depth)
   (if (null (geometry ls)) (create-geometry ls))
@@ -413,8 +413,8 @@ parameter list and t."
 
 (defmethod rewrite-and-raytrace ((ls l-system) filename
                                  &key
-                                 (depth (depth ls))
-                                 (width (cylinder-width ls)))
+                                   (depth (depth ls))
+                                   (width (cylinder-width ls)))
   "Rewrite, create geometry, output POV file and raytrace it."
   (rewrite ls depth)
   (if (null (geometry ls)) (create-geometry ls))
@@ -423,14 +423,14 @@ parameter list and t."
 
 (defmethod timed-raytrace ((ls l-system)
                            &key (filename "foo.pov")
-                                (depth (depth ls))
-                                (width-multiplier 0.01))
+                             (depth (depth ls))
+                             (width-multiplier 0.01))
   (format t "~%REWRITE:~%")
   (time (rewrite ls depth))
   (format t "~%CREATE-GEOMETRY:~%")
   (if (geometry ls)
-    (write-line "(already exists)")
-    (time (create-geometry ls)))
+      (write-line "(already exists)")
+      (time (create-geometry ls)))
   (format t "~%OUTPUT-POVRAY:~%")
   (time (output-povray (geometry ls) filename
                        :width-multiplier width-multiplier))
@@ -439,22 +439,22 @@ parameter list and t."
 
 (defmethod timed-preview ((ls l-system)
                           &key (filename "foo.eps")
-                               (depth (depth ls))
-                               (width-multiplier 0.2))
+                            (depth (depth ls))
+                            (width-multiplier 0.2))
   (format t "~%REWRITE:~%")
   (time (rewrite ls depth))
   (format t "~%CREATE-GEOMETRY:~%")
   (if (geometry ls)
-    (write-line "(already exists)")
-    (time (create-geometry ls)))
+      (write-line "(already exists)")
+      (time (create-geometry ls)))
   (format t "~%OUTPUT-SIMPLE-EPS:~%")
   (time (output-simple-eps (geometry ls) filename
                            :ps-width width-multiplier))
   (format t "~%Ghostview:~%")
-  (time (asdf:run-shell-command (format nil "gv ~A -scale 10" filename))))
+  (time (asdf:run-shell-command (print (format nil "gv ~A -scale 10" filename)))))
 
 (defun lsys2eps (classname filename &key (depth nil)
-                                         (width-multiplier 0.3))
+                                      (width-multiplier 0.3))
   (let ((lsys (make-instance classname)))
     (rewrite lsys (or depth (depth lsys)))
     (if (null (geometry lsys)) (create-geometry lsys))
@@ -462,7 +462,7 @@ parameter list and t."
                        :ps-width width-multiplier)))
 
 (defun lsys2pov (classname filename &key (depth nil)
-                                         (width-multiplier 0.02))
+                                      (width-multiplier 0.02))
   (let ((lsys (make-instance classname)))
     (rewrite lsys (or depth (depth lsys)))
     (if (null (geometry lsys)) (create-geometry lsys))
@@ -504,19 +504,19 @@ parameter list and t."
 
 (defmethod eps-animation ((ls l-system)
                           &key
-                          (filename-prefix (string-downcase
-                                            (class-name (class-of ls))))
-                          (frames (or (frame-list ls)
-                                      `((0 ,(depth ls)))))
-                          (border-percent 10.0)
-                          )
+                            (filename-prefix (string-downcase
+                                              (class-name (class-of ls))))
+                            (frames (or (frame-list ls)
+                                        `((0 ,(depth ls)))))
+                            (border-percent 10.0)
+                            )
   (rewrite ls 0)
   (do* ((framelist (copy-tree frames)))
        ((null framelist) :done)
     (let* ((frame (extract-framelist framelist))
            (filename (format nil "~A~A.eps" filename-prefix frame)))
       (loop until (<= frame (current-depth ls))
-            do (rewrite1 ls))
+         do (rewrite1 ls))
       (create-geometry ls)
       (format t "Outputting '~A'..." filename)
       (force-output)
@@ -526,20 +526,20 @@ parameter list and t."
 
 (defmethod povray-animation ((ls l-system)
                              &key
-                             (filename-prefix (string-downcase
-                                               (class-name (class-of ls))))
-                             (frames (or (frame-list ls)
-                                         `((0 ,(depth ls)))))
-                             (width (cylinder-width ls))
-                             (full-scene t)
-                             )
+                               (filename-prefix (string-downcase
+                                                 (class-name (class-of ls))))
+                               (frames (or (frame-list ls)
+                                           `((0 ,(depth ls)))))
+                               (width (cylinder-width ls))
+                               (full-scene t)
+                               )
   (rewrite ls 0)
   (do* ((framelist (copy-tree frames)))
        ((null framelist) :done)
     (let* ((frame (extract-framelist framelist))
            (filename (format nil "~A~A.pov" filename-prefix frame)))
       (loop until (<= frame (current-depth ls))
-            do (rewrite1 ls))
+         do (rewrite1 ls))
       (create-geometry ls)
       (format t "Outputting '~A'..." filename)
       (force-output)
@@ -569,21 +569,21 @@ changes to the WITH-*-CONTEXT and --> macros within the expression."
         (t (cons (expand-prods-body (first expr) ls blockname)
                  (expand-prods-body (rest expr) ls blockname)))))
 
-(defmacro prod (module module-form &rest body)
+(defmacro prod (module module-form &body body)
   "This macro makes some testing and variable-binding automatic.
 Used by CHOOSE-PRODUCTION, don't call it directly."
   (if (consp module-form)
-    `(when (and (consp ,module)
-              (eq (first ,module) ',(first module-form))
-              (= (length ,module) ,(length module-form)))
-       (destructuring-bind ,(rest module-form)
-           (rest ,module)
-         (declare (ignorable ,@(rest module-form)))
-         ,@body))
-    `(when (eq ',module-form ,module)
-       ,@body)))
+      `(when (and (consp ,module)
+                  (eq (first ,module) ',(first module-form))
+                  (= (length ,module) ,(length module-form)))
+         (destructuring-bind ,(rest module-form)
+             (rest ,module)
+           (declare (ignorable ,@(rest module-form)))
+           ,@body))
+      `(when (eq ',module-form ,module)
+         ,@body)))
 
-(defmacro choose-production (ls &rest prods)
+(defmacro choose-production (ls &body prods)
   "Choose and evaluate the first matching production.
 Productions are given as: (sym expr-returning-list)
 or with parameters:       ((sym param-1 ... param-n) expr-returning-list)"
@@ -600,15 +600,15 @@ or with parameters:       ((sym param-1 ... param-n) expr-returning-list)"
                        expanded-prods)
              t)))))
 
-(defmacro --> (&rest args)
+(defmacro --> (&body args)
   "Macro which can be used to specify right hand productions with
 parameters as expressions.  Use this within CHOOSE-PRODUCTIONS."
   `(list ,@(mapcar #'(lambda (x) (if (consp x)
-                                   `(list ',(car x) ,@(cdr x))
-                                   `',x))
+                                     `(list ',(car x) ,@(cdr x))
+                                     `',x))
                    args)))
 
-(defmacro stochastic-choice (&rest args)
+(defmacro stochastic-choice (&body args)
   (let ((sym-list (mapcar #'(lambda (x) (declare (ignore x)) (gensym))
                           args))
         (random-sym (gensym))
@@ -629,12 +629,12 @@ parameters as expressions.  Use this within CHOOSE-PRODUCTIONS."
         (bool-sym (gensym))
         (bind-params nil)
         (context-pattern (mapcar #'(lambda (x)
-                                  (let* ((params
-                                          (if (consp x) (rest x) nil))
-                                         (symbol
-                                          (if params (first x) x)))
-                                    (cons symbol (length params))))
-                              context-form)))
+                                     (let* ((params
+                                             (if (consp x) (rest x) nil))
+                                            (symbol
+                                             (if params (first x) x)))
+                                       (cons symbol (length params))))
+                                 context-form)))
     (dolist (obj context-form)
       (when (consp obj) (setf bind-params (append bind-params (rest obj)))))
     (if bind-params
@@ -655,10 +655,10 @@ parameters as expressions.  Use this within CHOOSE-PRODUCTIONS."
 (defmacro with-right-context (ls context-form &body body)
   `(with-context ,ls match-context-right ,context-form ,@body))
 
-(defmacro with-lc (&rest args)
+(defmacro with-lc (&body args)
   `(with-left-context ,@args))
 
-(defmacro with-rc (&rest args)
+(defmacro with-rc (&body args)
   `(with-right-context ,@args))
 
 ;; ignore/consider macros
@@ -668,9 +668,9 @@ parameters as expressions.  Use this within CHOOSE-PRODUCTIONS."
     `(let ((,save-ignore (ignore-list ,ls))
            (,save-consider (consider-list ,ls)))
        (unwind-protect
-           (progn (setf (consider-list ,ls) nil
-                        (ignore-list ,ls) ',ignore-list)
-                  ,@body)
+            (progn (setf (consider-list ,ls) nil
+                         (ignore-list ,ls) ',ignore-list)
+                   ,@body)
          (setf (consider-list ,ls) ,save-consider
                (ignore-list ,ls) ,save-ignore)))))
 
@@ -678,6 +678,6 @@ parameters as expressions.  Use this within CHOOSE-PRODUCTIONS."
   (let ((save-consider (gensym)))
     `(let ((,save-consider (consider-list ,ls)))
        (unwind-protect
-           (progn (setf (consider-list ,ls) ',consider-list)
-                  ,@body)
+            (progn (setf (consider-list ,ls) ',consider-list)
+                   ,@body)
          (setf (consider-list ,ls) ,save-consider)))))

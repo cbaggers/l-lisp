@@ -79,11 +79,11 @@
 
 (defmethod l-productions ((ls partree1))
   (choose-production ls
-   ((! x) (--> (! (1+ x))))
-   ((A s) (let ((s1 (* s 0.85))
-                (s2 (* s 0.75)))
-            (--> [ (/ 137) (& 25) (! 1.0) (F s1) (A s1) ]
-                 [ (\\ 43) (& 25) (! 1.0) (F s2) (A s2) ])))))
+    ((! x) (--> (! (1+ x))))
+    ((A s) (let ((s1 (* s 0.85))
+                 (s2 (* s 0.75)))
+             (--> [ (/ 137) (& 25) (! 1.0) (F s1) (A s1) ]
+                  [ (\\ 43) (& 25) (! 1.0) (F s2) (A s2) ])))))
 
 (defclass partree2 (l-system)
   ((axiom :initform '((:set-width 1.0) (:forward 1.0) (apex 1.0)))
@@ -95,9 +95,9 @@
     ((apex s) (let ((s1 (* s 0.85))
                     (s2 (* s 0.75)))
                 (--> [ (:roll-right 137) (:pitch-down 25)
-                       (:set-width 1.0) (:forward s1) (apex s1) ]
+                     (:set-width 1.0) (:forward s1) (apex s1) ]
                      [ (:roll-left 43) (:pitch-down 25)
-                       (:set-width 1.0) (:forward s2) (apex s2) ])))))
+                     (:set-width 1.0) (:forward s2) (apex s2) ])))))
 
 ;; Tree with randomness
 (defclass rtree (l-system)
@@ -108,13 +108,13 @@
   (choose-production ls
     ((A width length)
      (stochastic-choice
-      (30 (--> (/ (random 10.0))
-               (& (- (random 10.0) 5.0))
-               (! (* width 0.99))
-               (F length)
-               (A (* width 0.99) length)))
-      (1 (--> [ (- 25) (F length) (A width (* length 0.6)) ]
-              [ (+ 25) (F length) (A width (* length 0.6)) ]))))))
+       (30 (--> (/ (random 10.0))
+                (& (- (random 10.0) 5.0))
+                (! (* width 0.99))
+                (F length)
+                (A (* width 0.99) length)))
+       (1 (--> [ (- 25) (F length) (A width (* length 0.6)) ]
+               [ (+ 25) (F length) (A width (* length 0.6)) ]))))))
 
 
 ;; Example 4.2.3, "Exploration of parameter space"
@@ -153,11 +153,11 @@
   (choose-production ls
     ((! n) (--> (! (1+ n))))
     (A (stochastic-choice
-        (1 (--> (/ 137)
-                [ (+ 20) (! 1) F A ]
-                (- 20) (! 1) F A))
-        (1 (--> (/ 137)
-                (- 20) (! 1) F A))))))
+         (1 (--> (/ 137)
+                 [ (+ 20) (! 1) F A ]
+                 (- 20) (! 1) F A))
+         (1 (--> (/ 137)
+                 (- 20) (! 1) F A))))))
 
 ;; Stochastic tree model from VMoPD (modified)
 (defclass stochastic-tree (l-system)
@@ -173,13 +173,13 @@
       ((A k)
        (let ((p (min 1.0 (/ (1+ (* 2.0 k)) (* k k)))))
          (stochastic-choice
-          (p
-           (--> (/ roll-ang)
-                [ (+ turn-ang1) (S 1) (A (1+ k)) ]
-                (- turn-ang2) (S 1) (A (1+ k))))
-          ((- 1 p)
-           (--> (/ roll-ang)
-                (- turn-ang2) (S 1) (A (1+ k)))))))
+           (p
+            (--> (/ roll-ang)
+                 [ (+ turn-ang1) (S 1) (A (1+ k)) ]
+                 (- turn-ang2) (S 1) (A (1+ k))))
+           ((- 1 p)
+            (--> (/ roll-ang)
+                 (- turn-ang2) (S 1) (A (1+ k)))))))
       ((S n) (--> (S (1+ n)))))))
 
 (defmethod homomorphism ((ls stochastic-tree))
@@ -206,16 +206,16 @@
 (defmethod l-productions ((ls context-a))
   (choose-production ls
     (0 (with-lc (0)
-         (with-rc (0) (--> 0))
-         (with-rc (1) (--> 1 [ + F 1 F 1 ])))
+                (with-rc (0) (--> 0))
+                (with-rc (1) (--> 1 [ + F 1 F 1 ])))
        (with-lc (1)
-         (with-rc (0) (--> 0))
-         (with-rc (1) (--> 1 F 1))))
+                (with-rc (0) (--> 0))
+                (with-rc (1) (--> 1 F 1))))
     (1 (with-lc (0)
-         (--> 1))
+                (--> 1))
        (with-lc (1)
-         (with-rc (0) (--> 0))
-         (with-rc (1) (--> 0))))
+                (with-rc (0) (--> 0))
+                (with-rc (1) (--> 0))))
     (+ (--> -))
     (- (--> +))))
 
@@ -228,16 +228,16 @@
 (defmethod l-productions ((ls context-b))
   (choose-production ls
     (0 (with-lc (0)
-         (with-rc (0) (--> 1))
-         (with-rc (1) (--> 1 [ - F 1 F 1 ])))
+                (with-rc (0) (--> 1))
+                (with-rc (1) (--> 1 [ - F 1 F 1 ])))
        (with-lc (1)
-         (with-rc (0) (--> 0))
-         (with-rc (1) (--> 1 F 1))))
+                (with-rc (0) (--> 0))
+                (with-rc (1) (--> 1 F 1))))
     (1 (with-lc (0)
-         (--> 1))
+                (--> 1))
        (with-lc (1)
-         (with-rc (0) (--> 1))
-         (with-rc (1) (--> 0))))
+                (with-rc (0) (--> 1))
+                (with-rc (1) (--> 0))))
     (+ (--> -))
     (- (--> +))))
 
@@ -272,8 +272,7 @@
          (--> (I (1- c)))))
     ;; Signals disappers
     (S (--> nil))
-    ((T c) (--> nil))
-    ))
+    ((T c) (--> nil))))
 
 (defmethod homomorphism ((ls mycelis))
   (choose-production ls
@@ -321,8 +320,7 @@
                       m{
                       [ (:roll-left 60) (:pitch-up 45) (bow 1 10 10) ]
                       [ m/ (:roll-right 60) (:pitch-up 45) (bow 1 10 10) ]
-                      m}
-                      ))
+                      m}))
    (depth :initform 0)
    (angle-increment :initform 45)
    (homomorphism-depth :initform 100)))
@@ -331,9 +329,9 @@
   (choose-production ls
     ((bow length angle num)
      (if (> num 0)
-       (--> (mf length)
-            (:pitch-down angle)
-            (bow length angle (1- num)))))))
+         (--> (mf length)
+              (:pitch-down angle)
+              (bow length angle (1- num)))))))
 
 ;; Mesh test 2
 (defclass mesh-test-2 (l-system)
@@ -366,15 +364,15 @@
                m} ))
     ((bow length angle num)
      (if (> num 0)
-       (--> (mf length)
-            (:pitch-down angle)
-            (bow length angle (1- num)))))))
+         (--> (mf length)
+              (:pitch-down angle)
+              (bow length angle (1- num)))))))
 
 ;; 2d pruning
 (defclass prune1 (l-system)
   ((axiom :initform '([ (! 2)
-                        (- 90) (F 4) (+ 90) (F 8) (+ 90) (F 8)
-                        (+ 90) (F 8) (+ 90) (F 4) ]
+                      (- 90) (F 4) (+ 90) (F 8) (+ 90) (F 8)
+                      (+ 90) (F 8) (+ 90) (F 4) ]
                       F (?P nil)))
    (depth :initform 10)
    (angle-increment :initform 20)
@@ -388,12 +386,12 @@
 (defmethod l-productions ((ls prune1))
   (choose-production ls
     ((?P pos) (if (not (prune pos))
-                (--> [ + F (?P nil) ] [ - F (?P pos) ])))))
+                  (--> [ + F (?P nil) ] [ - F (?P pos) ])))))
 
 ;; Two-face pruning
 (defclass prune2face (l-system)
   ((axiom :initform '([ (! 2) (- 90) (F 4) (+ 90) (F 8) (+ 90) (F 8)
-                        (+ 90) (F 8) (+ 90) (F 4) ]
+                      (+ 90) (F 8) (+ 90) (F 4) ]
                       F (?P nil)))
    (mode :accessor mode :initform :grow)
    (depth :initform 10)
@@ -407,8 +405,8 @@
 (defmethod rewrite1 :before ((ls prune2face))
   (setf (mode ls)
         (if (eq (mode ls) :grow)
-          :cut
-          :grow)))
+            :cut
+            :grow)))
 
 (defmethod l-productions ((ls prune2face))
   (choose-production ls
@@ -419,8 +417,8 @@
     (F
      (when (eq (mode ls) :cut)
        (with-rc ((?P pos))
-         (when (prune pos)
-           (--> %)))))))
+                (when (prune pos)
+                  (--> %)))))))
 
 ;; Example: 3d pruning
 (defun prune-cylinder (pos height radius)
@@ -502,11 +500,11 @@
     ((! n) (--> (! (1+ n))))
     ((?P pos) (when (not (prune-cylinder pos 10 6))
                 (stochastic-choice
-                 (9 (--> (/ 137)
-                         [ (+ 40) (! 1) F (?P pos) leaf ]
-                         (- 35) (! 1) F (?P pos) leaf ))
-                 (1 (--> (/ 137)
-                         (- 35) (! 1) F (?P pos) leaf)))
+                  (9 (--> (/ 137)
+                          [ (+ 40) (! 1) F (?P pos) leaf ]
+                          (- 35) (! 1) F (?P pos) leaf ))
+                  (1 (--> (/ 137)
+                          (- 35) (! 1) F (?P pos) leaf)))
                 (--> permanent-leaf)))
     (leaf (--> nil))))
 
@@ -522,12 +520,10 @@
                  m{
                  [ (:roll-left 40) (:pitch-up start-ang) (bow ang n dist) ]
                  [ m/ (:roll-right 40) (:pitch-up start-ang) (bow ang n dist) ]
-                 m}
-                 )))
+                 m})))
     ((bow ang n dist) (if (> n 0)
-                        (--> (mf dist) (:pitch-down ang)
-                             (bow ang (1- n) dist))))
-    ))
+                          (--> (mf dist) (:pitch-down ang)
+                               (bow ang (1- n) dist))))))
 
 ;; Improved pruning
 (defclass prune3 (l-system)
@@ -538,8 +534,7 @@
    (prune-func :accessor prune-func
                :initform #'(lambda (pos) (prune-cylinder pos 15 6)))
    (limits :initform '((-7 -1 -7) (7 15 7)))
-   (cylinder-width :initform 0.02)
-   ))
+   (cylinder-width :initform 0.02)))
 
 (defmethod l-productions ((ls prune3))
   (choose-production ls
@@ -548,35 +543,34 @@
        ;; try moving one unit forward and see if we need to prune
        (move-forward turtle 1d0)
        (if (funcall prune-func (turtle-pos turtle))
-         ;; pruning: use interval halving to find out by how much
-         (let ((length nil))
-           (move-forward turtle -1d0)
-           (do* ((lower 0d0)
-                 (upper 1d0)
-                 (middle (/ (- upper lower) 2) (/ (- upper lower) 2))
-                 (original-pos (copy-seq (turtle-pos turtle)))
-                 (n 0 (1+ n)))
-               ((= n 5) (setq length middle))
-             (setf (turtle-pos turtle) (copy-seq original-pos))
-             (move-forward turtle middle)
-             (if (funcall prune-func (turtle-pos turtle))
-               (setq upper middle)
-               (setq lower middle)))
-           ;; return a segment that will not grow any more
-           (--> (! 1) (F length) permanent-leaf))
-         ;; no pruning, normal growth
-         (if (< (current-depth ls) 4)
-           (--> (! 1) (F 1) leaf (/ 137)
-                [ (- 35) (?T nil) ] (+ 40) (?T nil))
-           (stochastic-choice
-            (9 (--> (! 1) (F 1) leaf (/ 137)
-                    [ (- 35) (?T nil) ] (+ 40) (?T nil)))
-            (1 (--> (! 1) (F 1) leaf (/ 137) (+ 40) (?T nil))))))))
+           ;; pruning: use interval halving to find out by how much
+           (let ((length nil))
+             (move-forward turtle -1d0)
+             (do* ((lower 0d0)
+                   (upper 1d0)
+                   (middle (/ (- upper lower) 2) (/ (- upper lower) 2))
+                   (original-pos (copy-seq (turtle-pos turtle)))
+                   (n 0 (1+ n)))
+                  ((= n 5) (setq length middle))
+               (setf (turtle-pos turtle) (copy-seq original-pos))
+               (move-forward turtle middle)
+               (if (funcall prune-func (turtle-pos turtle))
+                   (setq upper middle)
+                   (setq lower middle)))
+             ;; return a segment that will not grow any more
+             (--> (! 1) (F length) permanent-leaf))
+           ;; no pruning, normal growth
+           (if (< (current-depth ls) 4)
+               (--> (! 1) (F 1) leaf (/ 137)
+                    [ (- 35) (?T nil) ] (+ 40) (?T nil))
+               (stochastic-choice
+                 (9 (--> (! 1) (F 1) leaf (/ 137)
+                         [ (- 35) (?T nil) ] (+ 40) (?T nil)))
+                 (1 (--> (! 1) (F 1) leaf (/ 137) (+ 40) (?T nil))))))))
     ;; leaves move by disappearing and getting recreated...
     (leaf (--> nil))
     ;; branch width
-    ((! x) (when (< x 4) (--> (! (+ x 0.5)))))
-    ))
+    ((! x) (when (< x 4) (--> (! (+ x 0.5)))))))
 
 (defmethod homomorphism ((ls prune3))
   (choose-production ls
@@ -590,12 +584,10 @@
                  m{
                  [ (:roll-left 40) (:pitch-up start-ang) (bow ang n dist) ]
                  [ m/ (:roll-right 40) (:pitch-up start-ang) (bow ang n dist) ]
-                 m}
-                 )))
+                 m})))
     ((bow ang n dist) (if (> n 0)
-                        (--> (mf dist) (:pitch-down ang)
-                             (bow ang (1- n) dist))))
-    ))
+                          (--> (mf dist) (:pitch-down ang)
+                               (bow ang (1- n) dist))))))
 
 ;; L-system inherited from PRUNE3:
 (defclass prune3-1 (prune3)
@@ -604,8 +596,7 @@
                       [ (@M #(-15 0 -15)) (?T nil) ]
                       [ (@M #(-15 0 15)) (?T nil) ]
                       [ (@M #(15 0 -15)) (?T nil) ]
-                      [ (@M #(0 0 0)) (?T nil) ]
-                      ))
+                      [ (@M #(0 0 0)) (?T nil) ]))
    (prune-func :initform #'(lambda (pos)
                              (and (prune-square-hedge pos 8 12 18)
                                   (prune-cylinder-sphere pos 10 5))))))
@@ -625,15 +616,15 @@
 
 (defun crash-cylinder-axis (x1 y1 z1 x2 y2 z2 x y z width)
   (assert (and (= y1 y2) (= z1 z2)))
-;  (format t "cyl (~A ~A ~A) (~A ~A ~A) ~A, point (~A ~A ~A)~%"
-;	  x1 y1 z1 x2 y2 z2 width x y z)
+  ;;  (format t "cyl (~A ~A ~A) (~A ~A ~A) ~A, point (~A ~A ~A)~%"
+  ;;  x1 y1 z1 x2 y2 z2 width x y z)
   (labels ((** (n) (* n n)))
-      (let ((xmin (min x1 x2))
-            (xmax (max x1 x2)))
-        (and (< xmin x xmax)
-             (< (+ (** (- y y1))
-                   (** (- z z1)))
-                (** width))))))
+    (let ((xmin (min x1 x2))
+          (xmax (max x1 x2)))
+      (and (< xmin x xmax)
+           (< (+ (** (- y y1))
+                 (** (- z z1)))
+              (** width))))))
 
 (defun crash-cylinder (line point)
   (let* ((p1 (line-p1 line))
@@ -677,10 +668,9 @@
                      '(\]
                        (:color #(0.4 1.0 0.4)) (! 0.15)
                        [ (@M #(-30 0 0))
-                        (searching-apex 0 22.5 20) (?P nil) ]
+                       (searching-apex 0 22.5 20) (?P nil) ]
                        [ (@M #(30 0 0))
-                        (searching-apex 0 22.5 20) (?P nil) ]
-                       )))
+                       (searching-apex 0 22.5 20) (?P nil) ])))
    (boxes :accessor boxes
           :initform (turtle-interpret *init-boxes*))
    (cylinders :accessor cylinders
@@ -707,41 +697,40 @@
       (choose-production ls
         ((searching-apex roll pitch n)
          (with-rc ((?P pos))
-           (if (crash pos)
-               (progn
-                 #+nil(if (>= (aref pos 1) 55)
-                     (format t "crash ~A???~%" pos)
-                     (format t "crash with y=~A~%" (aref pos 1)))
-                 (--> (backtracking-apex roll pitch n)))
-             (let ((npitch (+ pitch rstep)))
-               (if (< npitch maxr)
-                 (--> (searching-apex roll npitch n))
-                 (--> (searching-apex (+ roll 45) 0d0 n)))))))
+                  (if (crash pos)
+                      (progn
+                        #+nil(if (>= (aref pos 1) 55)
+                                 (format t "crash ~A???~%" pos)
+                                 (format t "crash with y=~A~%" (aref pos 1)))
+                        (--> (backtracking-apex roll pitch n)))
+                      (let ((npitch (+ pitch rstep)))
+                        (if (< npitch maxr)
+                            (--> (searching-apex roll npitch n))
+                            (--> (searching-apex (+ roll 45) 0d0 n)))))))
         ((backtracking-apex roll pitch n)
          (with-rc ((?P pos))
-           (if (crash pos)
-             (--> (backtracking-apex roll (+ pitch bstep) n))
-             (cond ((zerop n)
-                    (--> (segment roll pitch)
-                         [ (:turn-left (stochastic-choice
-                                        (1 branch-angle)
-                                        (1 (- branch-angle))))
-                           (searching-apex 0d0 0d0 branch-distance)
-                           (?P nil) ]
-                         (searching-apex 0d0 0d0 branch-distance)))
-                   ((zerop (mod (+ n (floor leaf-distance 2))
-                                leaf-distance))
-                    (--> (segment roll pitch)
-                         (leaf 6 (+ 35d0 (random 10d0)) 0.1d0)
-                         (:turn-right (nrandom 0d0 random-turn))
-                         (searching-apex 0d0 0d0 (- n 1))))
-                   (t
-                    (--> (segment roll pitch)
-                         (:turn-right (nrandom 0d0 random-turn))
-                         (searching-apex 0d0 0d0 (- n 1))))))))
+                  (if (crash pos)
+                      (--> (backtracking-apex roll (+ pitch bstep) n))
+                      (cond ((zerop n)
+                             (--> (segment roll pitch)
+                                  [ (:turn-left (stochastic-choice
+                                                  (1 branch-angle)
+                                                  (1 (- branch-angle))))
+                                  (searching-apex 0d0 0d0 branch-distance)
+                                  (?P nil) ]
+                                  (searching-apex 0d0 0d0 branch-distance)))
+                            ((zerop (mod (+ n (floor leaf-distance 2))
+                                         leaf-distance))
+                             (--> (segment roll pitch)
+                                  (leaf 6 (+ 35d0 (random 10d0)) 0.1d0)
+                                  (:turn-right (nrandom 0d0 random-turn))
+                                  (searching-apex 0d0 0d0 (- n 1))))
+                            (t
+                             (--> (segment roll pitch)
+                                  (:turn-right (nrandom 0d0 random-turn))
+                                  (searching-apex 0d0 0d0 (- n 1))))))))
         ((leaf n start-ang size)
-         (--> (leaf n start-ang (min 5d0 (+ size 0.1)))))
-        ))))
+         (--> (leaf n start-ang (min 5d0 (+ size 0.1)))))))))
 
 (defmethod homomorphism ((ls climbing1))
   (choose-production ls
@@ -753,14 +742,13 @@
      (let ((ang (/ (* start-ang 2.0) (1- n)))
            (dist (/ size n)))
        (--> [ (:pitch-up 170) (:roll-left 180)
-              m{
-              [ (:roll-left 60) (:pitch-up start-ang) (bow ang n dist) ]
-              [ m/ (:roll-right 60) (:pitch-up start-ang) (bow ang n dist) ]
-              m} ])))
+            m{
+            [ (:roll-left 60) (:pitch-up start-ang) (bow ang n dist) ]
+            [ m/ (:roll-right 60) (:pitch-up start-ang) (bow ang n dist) ]
+            m} ])))
     ((bow ang n dist) (if (> n 0)
-                        (--> (mf dist) (:pitch-down ang)
-                             (bow ang (1- n) dist))))
-    ))
+                          (--> (mf dist) (:pitch-down ang)
+                               (bow ang (1- n) dist))))))
 
 ;; Simple tropism
 (defclass tropism1 (l-system)
@@ -800,9 +788,9 @@
 (defmethod l-productions ((ls tropism2))
   (choose-production ls
     ((A s w) (with-rc ((?H hvec))
-               (--> (S s w hvec)
-                    [ (+ 30) (/ 137) (A (* s 0.8) (* w 0.8)) (?H nil) ]
-                    [ (- 10) (/ -90) (A (* s 0.9) (* w 0.8)) (?H nil) ])))
+                      (--> (S s w hvec)
+                           [ (+ 30) (/ 137) (A (* s 0.8) (* w 0.8)) (?H nil) ]
+                           [ (- 10) (/ -90) (A (* s 0.9) (* w 0.8)) (?H nil) ])))
     ((?H hvec) (--> nil))))
 
 (defmethod elasticity ((ls tropism2) s w)
@@ -848,22 +836,20 @@
   ((axiom :initform '((:color #(0.8 0.4 0.2))
                       (A 100 12) (?H nil)))
    (depth :initform 12)
-   (homomorphism-depth :initform 10)
-   ))
+   (homomorphism-depth :initform 10)))
 
 (defmethod l-productions ((ls gtropism))
   (choose-production ls
     ((A s w) (with-rc ((?H hvec))
-               (let ((x (if (<= (current-depth ls) 2)
-                            0
-                            1)))
-                 (stochastic-choice
-                  (x (--> (S s w hvec)
-                          (/ 137) (A (* s 0.8) (* w 0.8)) (?H nil)))
-                  (9 (--> (S s w hvec)
-                          [ (+ 30) (/ 137) (A (* s 0.8) (* w 0.8)) (?H nil) ]
-                          [ (- 10) (/ -90) (A (* s 0.9) (* w 0.8)) (?H nil) ]))
-                  ))))
+                      (let ((x (if (<= (current-depth ls) 2)
+                                   0
+                                   1)))
+                        (stochastic-choice
+                          (x (--> (S s w hvec)
+                                  (/ 137) (A (* s 0.8) (* w 0.8)) (?H nil)))
+                          (9 (--> (S s w hvec)
+                                  [ (+ 30) (/ 137) (A (* s 0.8) (* w 0.8)) (?H nil) ]
+                                  [ (- 10) (/ -90) (A (* s 0.9) (* w 0.8)) (?H nil) ]))))))
     ((?H hvec) (--> nil))))
 
 (defmethod homomorphism ((ls gtropism))
@@ -902,26 +888,25 @@
   (choose-production ls
     ((bent-branch roll pitch length n m width)
      (if (<= n 0)
-       (--> nil)
-       (let ((rollf (/ roll n))
-             (pitchf (/ pitch n))
-             (lengthf (/ length n)))
-         (--> (:set-width (+ width (/ n m)))
-              (:roll-right rollf)
-              (:pitch-down pitchf)
-              (:forward lengthf)
-              (bent-branch (- roll rollf) (- pitch pitchf)
-                           (- length lengthf) (1- n) m width)))))))
+         (--> nil)
+         (let ((rollf (/ roll n))
+               (pitchf (/ pitch n))
+               (lengthf (/ length n)))
+           (--> (:set-width (+ width (/ n m)))
+                (:roll-right rollf)
+                (:pitch-down pitchf)
+                (:forward lengthf)
+                (bent-branch (- roll rollf) (- pitch pitchf)
+                             (- length lengthf) (1- n) m width)))))))
 
 ;; Cut symbol test
 (defclass cut-test (l-system)
   ((axiom :initform '([ + (F 7 0) - (F 10 0) - (F 14 0)
-                       - (F 10 0) - (F 7 0) ]
+                      - (F 10 0) - (F 7 0) ]
                       (! 1) A))
    (depth :initform 7)
    (frame-list :initform '((1 7)))
-   (frame-delay :initform 1)
-   ))
+   (frame-delay :initform 1)))
 
 (defmethod l-productions ((ls cut-test))
   (choose-production ls
@@ -931,15 +916,14 @@
             [ (+ 25) (! 1) X A ]
             [ (- 25) (! 1) X A ]))
     (X (stochastic-choice
-        (19 (--> X))
-        (0 (--> A :cut-symbol))))
-    ))
+         (19 (--> X))
+         (0 (--> A :cut-symbol))))))
 
 ;; Sphere test
 (defclass sphere-test (l-system)
   ((axiom :initform '(F (:sphere 3) F
-                        (:color #(0 0.5 1.0))
-                        (:sphere 3) F))))
+                      (:color #(0 0.5 1.0))
+                      (:sphere 3) F))))
 
 ;; Constant curvature (growing arc)
 (defclass const-curvature (l-system)
@@ -977,8 +961,8 @@
 ;; Contact points
 (defclass contact-points (l-system)
   ((axiom :initform '([ (! 0.01) (+ 90) (\f 1)
-                       (+ 90) (F 0.5) (+ 90) (F 22) (+ 90) (F 1)
-                       (+ 90) (F 22) (+ 90) (F 1) ]
+                      (+ 90) (F 0.5) (+ 90) (F 22) (+ 90) (F 1)
+                      (+ 90) (F 22) (+ 90) (F 1) ]
                       (- 90) (A 1 0 -1) X))
    (depth :initform 10)
    (decomposition-depth :initform 10)
@@ -989,8 +973,7 @@
    (next-rotation-point :accessor next-rotation-point)
    (max-length :accessor max-length :initform 1.0)
    (frame-list :initform '((1 290)))
-   (frame-delay :initform 0.02)
-   ))
+   (frame-delay :initform 0.02)))
 
 (defmethod rewrite :before ((ls contact-points) &optional (depth (depth ls)))
   (declare (ignorable depth))
@@ -1014,14 +997,14 @@
            (--> (A new-s this-pos -1)))
          ;; new CP from the right
          (with-rc ((A sr pr cr))
-           (when (< cr stem-pos)
-             (--> (A new-s this-pos cr))))
+                  (when (< cr stem-pos)
+                    (--> (A new-s this-pos cr))))
          ;; create new CP at the apex
          (with-rc (X)
-           (when (> stem-pos next-rotation-point)
-             (let ((new-c next-rotation-point))
-               (incf next-rotation-point cp-interval)
-               (--> (A new-s this-pos new-c)))))
+                  (when (> stem-pos next-rotation-point)
+                    (let ((new-c next-rotation-point))
+                      (incf next-rotation-point cp-interval)
+                      (--> (A new-s this-pos new-c)))))
          ;; no CP
          (--> (A new-s this-pos c)))))))
 
@@ -1034,18 +1017,18 @@
              (c2 -1))
          (when (>= c 0)
            (if (< c (+ p s/2))
-             (setq c1 c)
-             (setq c2 c)))
+               (setq c1 c)
+               (setq c2 c)))
          (--> (A s/2 p c1) (A s/2 (+ p s/2) c2)))))))
 
 (defmethod homomorphism ((ls contact-points))
   (choose-production ls
     ((A s p c)
      (if (< c 0)
-       (--> (@O 3) (F s))
-       (let* ((s1 (- c p))
-              (s2 (- s s1)))
-         (--> (@O 3) (F s1) (@O 6) (F s2)))))))
+         (--> (@O 3) (F s))
+         (let* ((s1 (- c p))
+                (s2 (- s s1)))
+           (--> (@O 3) (F s1) (@O 6) (F s2)))))))
 
 ;; Good looking tree (combines randomness, bent branches and mesh leaves)
 (defclass gtree (l-system)
@@ -1055,21 +1038,20 @@
    (homomorphism-depth :initform 20)
    (line-style :initform :cylinders)
    (cylinder-width :initform 1.0)
-   (sensitive :initform nil)
-   ))
+   (sensitive :initform nil)))
 
 (defmethod l-productions ((ls gtree))
   (choose-production ls
     ((S width roll turn length) (--> (S (1+ width) roll turn
                                         (* length 1.15))))
     (A (stochastic-choice
-        (3
-         (--> [ (S 1 137 (nrandom 30 10) (nrandom 1.5 0.5)) A ]
-              (:turn-right 20)
-              (S 1 137 (nrandom -30 10) (nrandom 1.5 0.5)) A))
-        ((if (< (current-depth ls) 3) 0 1)
-         (--> [ (:turn-left 20) L ] ;;(- 20)
-              (S 1 137 (nrandom 10 10) (nrandom 1.5 0.5)) A))))))
+         (3
+          (--> [ (S 1 137 (nrandom 30 10) (nrandom 1.5 0.5)) A ]
+               (:turn-right 20)
+               (S 1 137 (nrandom -30 10) (nrandom 1.5 0.5)) A))
+         ((if (< (current-depth ls) 3) 0 1)
+          (--> [ (:turn-left 20) L ] ;;(- 20)
+               (S 1 137 (nrandom 10 10) (nrandom 1.5 0.5)) A))))))
 
 (defmethod homomorphism ((ls gtree))
   (let ((steps 4)
@@ -1085,11 +1067,11 @@
               (:forward length)
               (bent-branch (- width (/ 0.1 steps)) roll turn length (1+ n)))))
       (L (stochastic-choice
-          (1 (--> A))
-          (1 (--> (berry 0.8)))))
+           (1 (--> A))
+           (1 (--> (berry 0.8)))))
       ((berry size)
        (--> [ (:turn-left (nrandom 45 10)) (:forward size)
-              (:color #(1.0 0.2 0.2)) (:sphere size) ]))
+            (:color #(1.0 0.2 0.2)) (:sphere size) ]))
       (A (--> (:color #(0.2 0.7 0.2))
               (:roll-left (random 360))
               (leaf (nrandom 55 10) 60 (nrandom 4 0.2))))
@@ -1101,14 +1083,13 @@
               (:tropism nil) (:pitch-down 25d0)
               :start-mesh
               [ (:roll-left start-roll) (:pitch-up start-angle)
-                :new-strand (bent-leaf pitch-step size-step 0) ]
+              :new-strand (bent-leaf pitch-step size-step 0) ]
               [ (:roll-right start-roll) (:pitch-up start-angle)
-                :new-strand (bent-leaf pitch-step size-step 0) ]
+              :new-strand (bent-leaf pitch-step size-step 0) ]
               :end-mesh)))
       ((bent-leaf pitch-step size-step n)
        (when (< n leaf-steps)
          (--> (:pitch-down pitch-step) (mf size-step)
               (bent-leaf pitch-step size-step (1+ n)))))
       ((wid x)
-       (--> (:set-width (* 0.045 x))))
-      )))
+       (--> (:set-width (* 0.045 x)))))))

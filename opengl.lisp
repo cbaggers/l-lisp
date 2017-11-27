@@ -601,8 +601,8 @@
          (unless *display* (setq *display* (xlib-gl:xopendisplay "")))
          (let ((window (create-gl-window *display* window-width window-height
                                          "L-Lisp OpenGL window")))
-                                        ;    (setq *window* (create-gl-window *display* 300 300
-                                        ;                     "L-lisp OpenGL window"))
+           ;;    (setq *window* (create-gl-window *display* 300 300
+           ;;                     "L-lisp OpenGL window"))
            ;; fill in some values in l-win
            (setf (lw-display l-win) *display*
                  (lw-window l-win) window))

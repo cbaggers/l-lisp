@@ -409,7 +409,7 @@ parameter list and t."
   (output-simple-eps (geometry ls) filename
                      :ps-width width
                      :sphere-width sphere-width)
-  (asdf:run-shell-command (format nil "gv ~A -scale 10" filename)))
+  (uiop:run-program (format nil "gv ~A -scale 10" filename)))
 
 (defmethod rewrite-and-raytrace ((ls l-system) filename
                                  &key
@@ -419,7 +419,7 @@ parameter list and t."
   (rewrite ls depth)
   (if (null (geometry ls)) (create-geometry ls))
   (output-povray (geometry ls) filename :width-multiplier width)
-  (asdf:run-shell-command (format nil "povray +i~A" filename)))
+  (uiop:run-program (format nil "povray +i~A" filename)))
 
 (defmethod timed-raytrace ((ls l-system)
                            &key (filename "foo.pov")
@@ -435,7 +435,7 @@ parameter list and t."
   (time (output-povray (geometry ls) filename
                        :width-multiplier width-multiplier))
   (format t "~%Raytracing:~%")
-  (time (asdf:run-shell-command (format nil "povray +i~A" filename))))
+  (time (uiop:run-program (format nil "povray +i~A" filename))))
 
 (defmethod timed-preview ((ls l-system)
                           &key (filename "foo.eps")
@@ -451,7 +451,7 @@ parameter list and t."
   (time (output-simple-eps (geometry ls) filename
                            :ps-width width-multiplier))
   (format t "~%Ghostview:~%")
-  (time (asdf:run-shell-command (print (format nil "gv ~A -scale 10" filename)))))
+  (time (uiop:run-program (print (format nil "gv ~A -scale 10" filename)))))
 
 (defun lsys2eps (classname filename &key (depth nil)
                                       (width-multiplier 0.3))

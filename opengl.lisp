@@ -2,30 +2,12 @@
 ;;;
 ;;; This file is part of L-Lisp by Knut Arild Erstad.
 ;;; Contains code for OpenGL previews and animations of L-systems
+;;;
+;;; Ported to SDL2 (2018)
 
 (in-package :l-systems)
 
-;; Load the allegro-xlib-and-gl Xlib/OpenGL bindings by Richard Mann
-;; A CMUCL port is available from http://www.ii.uib.no/~knute/lisp/
-;; Note: this has been untested a long time
-#+allegro
-(eval-when (:compile-toplevel :load-toplevel)
-  (require :gl)
-  (require :xlib))
-
-#+(or cmu sbcl)
-(eval-when (:compile-toplevel :load-toplevel)
-  (require :cmucl-xlib-and-gl))
-
-;; global GLX variables
-(defvar *display* nil)
-(defvar *glxcontext* nil)
-;;(defvar *window*)
-
 (defstruct (l-window (:conc-name lw-))
-  ;; Xlib/GL variables
-  display
-  window
   ;; L-system
   ls
   ;; line/cylinder settings
@@ -49,7 +31,6 @@
   clock
   )
 
-;; "Callbacks" (not really callbacks, more like event handling functions)
 (defun gl-initialize (l-win)
   (let* ((ls (lw-ls l-win))
          (geometry (geometry ls)))
@@ -66,19 +47,18 @@
       (setf (lw-light-pos l-win)
             (make-array 4 :element-type #-cmu 'fixnum #+cmu '(signed-byte 32)
                         :initial-contents '#(0 1 0 0)))
-      (gl:glEnable gl:GL_LIGHTING)
-      (gl:glLightModeli gl:GL_LIGHT_MODEL_TWO_SIDE 1)
+      (gl:enable :lighting)
+      (gl:light-model :light-model-two-side 1)
       ;;(gl:glLightModelf gl:GL_LIGHT_MODEL_LOCAL_VIEWER 0.3)
       (let ((ambient (make-array 4 :element-type 'single-float
                                  :initial-contents #(0.2 0.2 0.2 1.0))))
-        (gl:glLightModelfv gl:GL_LIGHT_MODEL_AMBIENT ambient))
-      (gl:glEnable gl:GL_LIGHT0))
+        (gl:light-model :light-model-ambient ambient))
+      (gl:enable :light0))
     ;; OpenGL init
-    (gl:glDepthFunc gl:GL_LESS)
-    (gl:glEnable gl:GL_DEPTH_TEST)
-    ))
+    (gl:depth-func :less)
+    (gl:enable :depth-test)))
 
-(defun gl-reshape (l-win width height)
+(defun gl-reshape (l-win &key width height)
   (setf (lw-width l-win) width)
   (setf (lw-height l-win) height)
   (let* ((debug nil)
@@ -108,20 +88,19 @@
     (let ((half-x (/ xsize 2))
           (half-y (/ ysize 2))
           (z-inc (* 2 (max xsize ysize zsize))))
-      (gl:glViewport 0 0 width height)
-      (gl:glMatrixMode gl:GL_PROJECTION)
-      (gl:glLoadIdentity)
-      (gl:glOrtho (- half-x) half-x
-                  (- half-y) half-y
-                  (- z-inc) z-inc)
-      (gl:glMatrixMode gl:GL_MODELVIEW)
-      (gl:glLoadIdentity)
+      (gl:viewport 0 0 width height)
+      (gl:matrix-mode :projection)
+      (gl:load-identity)
+      (gl:ortho (- half-x) half-x
+		(- half-y) half-y
+		(- z-inc) z-inc)
+      (gl:matrix-mode :modelview)
+      (gl:load-identity)
       ;; rotate model
-      (gl:glRotated (lw-tilt-angle l-win) 1d0 0d0 0d0)
-      (gl:glRotated (lw-rotate-angle l-win) 0d0 1d0 0d0)
+      (gl:rotate (lw-tilt-angle l-win) 1d0 0d0 0d0)
+      (gl:rotate (lw-rotate-angle l-win) 0d0 1d0 0d0)
       ;; move it to center of the window
-      (gl:glTranslated (- xcenter) (- ycenter) (- zcenter))
-      )))
+      (gl:translate (- xcenter) (- ycenter) (- zcenter)))))
 
 (defvar *black* (make-array 4 :element-type 'single-float
                             :initial-contents '#(0.0 0.0 0.0 1.0)))
@@ -129,10 +108,10 @@
 (defun gl-set-color (l-win color)
   (let ((col (or color *black*)))
     (if (lw-enable-lighting l-win)
-        (gl:glMaterialfv gl:GL_FRONT_AND_BACK
-                         gl:GL_AMBIENT_AND_DIFFUSE
+        (gl:material :front-and-back
+                         :ambient-and-diffuse
                          col)
-        (gl:glColor4fv col))))
+        (%gl:color-4fv col))))
 
 (defmethod gl-code (l-win elt)
   (declare (ignore l-win))
@@ -150,13 +129,12 @@
        ;; set color
        (gl-set-color l-win color)
        ;; set linewidth
-       (gl:glLineWidth (coerce w 'single-float))
+       (gl:line-width (coerce w 'single-float))
        ;; draw line
-       (gl:glBegin gl:GL_LINES)
-       (gl:glVertex3dv p1)
-       (gl:glVertex3dv p2)
-       (gl:glEnd)
-       ))
+       (gl:begin :lines)
+       (gl:vertex (aref p1 0) (aref p1 1) (aref p1 2))
+       (gl:vertex (aref p2 0) (aref p2 1) (aref p2 2))
+       (gl:end)))
     ;; *** cylinders ***
     (:cylinders
      (let ((p1 (line-p1 line))
@@ -178,7 +156,7 @@
                 (deg-angle (rad-to-deg rad-angle))
                 (cylinder-width (lw-cylinder-width l-win))
                 ;;quad)
-                (quad (gl:gluNewQuadric)))
+                (quad (glu:new-quadric)))
            (declare (optimize (speed 3)
                               #+cmu (ext:inhibit-warnings 3))
                     (type (simple-array double-float (3))
@@ -188,20 +166,20 @@
            ;; set color
            (gl-set-color l-win color)
            ;; push matrix
-           (gl:glPushMatrix)
+           (gl:push-matrix)
            ;; translate to p1
-           (gl:glTranslated (aref p1 0) (aref p1 1) (aref p1 2))
+           (gl:translate (aref p1 0) (aref p1 1) (aref p1 2))
            ;; rotate to hvec
-           (gl:glRotated deg-angle (aref rvec 0) (aref rvec 1) (aref rvec 2))
+           (gl:rotate deg-angle (aref rvec 0) (aref rvec 1) (aref rvec 2))
            ;; now the cylinder can be created
-           (gl:gluQuadricNormals quad gl:GLU_SMOOTH)
-           (gl:gluQuadricDrawStyle quad gl:GLU_FILL)
-           (gl:gluCylinder quad
+           (glu:quadric-normals quad :smooth)
+           (glu:quadric-draw-style quad :fill)
+           (glu:cylinder quad
                            (* w1 cylinder-width) (* w2 cylinder-width)
                            height (lw-cylinder-slices l-win) 1)
            ;; deallocate quad
-           (gl:gluDeleteQuadric quad)
-           (gl:glPopMatrix)))))
+           (glu:delete-quadric quad)
+           (gl:pop-matrix)))))
     (t
      (error "Unknown LINE-STYLE ~A, should be :LINES or :CYLINDERS."
             (lw-line-style l-win))))
@@ -213,48 +191,51 @@
     (:cylinders
      (let ((pos (sphere-pos sphere))
            (radius (sphere-radius sphere))
-           (quad (gl:gluNewQuadric))
+           (quad (glu:new-quadric))
            (cylinder-width (lw-cylinder-width l-win)))
        (declare (optimize (speed 3) (safety 0))
                 (double-float radius cylinder-width)
                 (type (simple-array double-float (3)) pos))
-       (gl:glPushMatrix)
-       (gl:glTranslated (aref pos 0) (aref pos 1) (aref pos 2))
-       (gl:gluQuadricNormals quad gl:GLU_SMOOTH)
-       (gl:gluQuadricDrawStyle quad gl:GLU_FILL)
+       (gl:push-matrix)
+       (gl:translate (aref pos 0) (aref pos 1) (aref pos 2))
+       (glu:quadric-normals quad :smooth)
+       (glu:quadric-draw-style quad :fill)
        (let* ((slices (lw-cylinder-slices l-win))
               (stacks (round slices 2)))
-         (gl:gluSphere quad
-                       (* cylinder-width radius)
-                       slices stacks))
-       (gl:gluDeleteQuadric quad)
-       (gl:glPopMatrix)))
+         (glu:sphere quad
+                     (* cylinder-width radius)
+                     slices stacks))
+       (glu:delete-quadric quad)
+       (gl:pop-matrix)))
     (:lines
      (let ((w (* (sphere-radius sphere) (or (lw-line-width l-win) 1.0d0))))
-       (gl:glPointSize (coerce w 'single-float))
-       (gl:glBegin GL:GL_POINTS)
-       (gl:glVertex3dv (sphere-pos sphere))
-       (gl:glEnd)))))
+       (gl:point-size (coerce w 'single-float))
+       (gl:begin :points)
+       (with-slots (pos) sphere
+	 (gl:vertex (aref pos 0) (aref pos 1) (aref pos 2)))
+       (gl:end)))))
 
 (defmethod gl-code (l-win (polygon polygon))
   (gl-set-color l-win (polygon-color polygon))
-  (gl:glNormal3dv (polygon-normal polygon))
-  (gl:glBegin gl:GL_POLYGON)
+  (with-slots (normal) polygon
+    (gl:normal (aref normal 0) (aref normal 1) (aref normal 2)))
+  (gl:begin :polygon)
   (dolist (p (polygon-points polygon))
     ;;(declare (optimize (speed 3)))
     ;;(declare (type (simple-array double-float (3)) p))
-    (gl:glVertex3d (aref p 0) (aref p 1) (aref p 2)))
+    (%gl:vertex-3d (aref p 0) (aref p 1) (aref p 2)))
   ;;(gl:glVertex3dv p))
-  (gl:glEnd))
+  (gl:end))
 
 (defmethod gl-code (l-win (mesh mesh))
   (gl-set-color l-win (mesh-color mesh))
-  (gl:glBegin gl:GL_TRIANGLES)
+  (gl:begin :triangles)
   (dolist (triangle (mesh-triangles mesh))
     (dolist (vertex (triangle-vertices triangle))
-      (gl:glNormal3dv (vertex-normal vertex))
-      (gl:glVertex3dv (vertex-pos vertex))))
-  (gl:glEnd))
+      (with-slots (normal pos) vertex
+	(gl:normal (aref normal 0) (aref normal 1) (aref normal 2))
+	(gl:vertex (aref pos 0) (aref pos 1) (aref pos 2)))))
+  (gl:end))
 
 (defmethod gl-code (l-win (box box))
   (gl-set-color l-win (box-color box))
@@ -268,69 +249,68 @@
          (z2 (aref pos2 2)))
     ;; A box is six rectangles (polygons)...
     ;; 1: z = z1, normal = -Z
-    (gl:glBegin gl:GL_POLYGON)
-    (gl:glNormal3i 0 0 -1)
-    (gl:glVertex3d x1 y1 z1)
-    (gl:glVertex3d x1 y2 z1)
-    (gl:glVertex3d x2 y2 z1)
-    (gl:glVertex3d x2 y1 z1)
-    (gl:glEnd)
+    (gl:begin :polygon)
+    (%gl:normal-3i 0 0 -1)
+    (%gl:vertex-3d x1 y1 z1)
+    (%gl:vertex-3d x1 y2 z1)
+    (%gl:vertex-3d x2 y2 z1)
+    (%gl:vertex-3d x2 y1 z1)
+    (gl:end)
     ;; 2: z = z2, normal = Z
-    (gl:glBegin gl:GL_POLYGON)
-    (gl:glNormal3i 0 0 1)
-    (gl:glVertex3d x1 y1 z2)
-    (gl:glVertex3d x1 y2 z2)
-    (gl:glVertex3d x2 y2 z2)
-    (gl:glVertex3d x2 y1 z2)
-    (gl:glEnd)
+    (gl:begin :polygon)
+    (%gl:normal-3i 0 0 1)
+    (%gl:vertex-3d x1 y1 z2)
+    (%gl:vertex-3d x1 y2 z2)
+    (%gl:vertex-3d x2 y2 z2)
+    (%gl:vertex-3d x2 y1 z2)
+    (gl:end)
     ;; 3: y = y1, normal = -Y
-    (gl:glBegin gl:GL_POLYGON)
-    (gl:glNormal3i 0 -1 0)
-    (gl:glVertex3d x1 y1 z1)
-    (gl:glVertex3d x1 y1 z2)
-    (gl:glVertex3d x2 y1 z2)
-    (gl:glVertex3d x2 y1 z1)
-    (gl:glEnd)
+    (gl:begin :polygon)
+    (%gl:normal-3i 0 -1 0)
+    (%gl:vertex-3d x1 y1 z1)
+    (%gl:vertex-3d x1 y1 z2)
+    (%gl:vertex-3d x2 y1 z2)
+    (%gl:vertex-3d x2 y1 z1)
+    (gl:end)
     ;; 4: y = y2, normal = Y
-    (gl:glBegin gl:GL_POLYGON)
-    (gl:glNormal3i 0 1 0)
-    (gl:glVertex3d x1 y2 z1)
-    (gl:glVertex3d x1 y2 z2)
-    (gl:glVertex3d x2 y2 z2)
-    (gl:glVertex3d x2 y2 z1)
-    (gl:glEnd)
+    (gl:begin :polygon)
+    (%gl:normal-3i 0 1 0)
+    (%gl:vertex-3d x1 y2 z1)
+    (%gl:vertex-3d x1 y2 z2)
+    (%gl:vertex-3d x2 y2 z2)
+    (%gl:vertex-3d x2 y2 z1)
+    (gl:end)
     ;; 5: x = x1, normal = -X
-    (gl:glBegin gl:GL_POLYGON)
-    (gl:glNormal3i -1 0 0)
-    (gl:glVertex3d x1 y1 z1)
-    (gl:glVertex3d x1 y1 z2)
-    (gl:glVertex3d x1 y2 z2)
-    (gl:glVertex3d x1 y2 z1)
-    (gl:glEnd)
+    (gl:begin :polygon)
+    (%gl:normal-3i -1 0 0)
+    (%gl:vertex-3d x1 y1 z1)
+    (%gl:vertex-3d x1 y1 z2)
+    (%gl:vertex-3d x1 y2 z2)
+    (%gl:vertex-3d x1 y2 z1)
+    (gl:end)
     ;; 6: x = x2, normal = X
-    (gl:glBegin gl:GL_POLYGON)
-    (gl:glNormal3i 1 0 0)
-    (gl:glVertex3d x2 y1 z1)
-    (gl:glVertex3d x2 y1 z2)
-    (gl:glVertex3d x2 y2 z2)
-    (gl:glVertex3d x2 y2 z1)
-    (gl:glEnd)
-    ))
+    (gl:begin :polygon)
+    (%gl:normal-3i 1 0 0)
+    (%gl:vertex-3d x2 y1 z1)
+    (%gl:vertex-3d x2 y1 z2)
+    (%gl:vertex-3d x2 y2 z2)
+    (%gl:vertex-3d x2 y2 z1)
+    (gl:end)))
 
 (defun gl-draw (l-win)
   (let* ((ls (lw-ls l-win))
          (geometry (geometry ls)))
+    (when (lw-animate l-win)
+      (gl-animate l-win))
     ;; initialization
-    (gl:glClearColor 1.0 1.0 1.0 0.0)
-    (gl:glClear (+ gl:GL_COLOR_BUFFER_BIT
-                   gl:GL_DEPTH_BUFFER_BIT))
-    (gl:glPushMatrix)
-    (gl:glColor3f 0.0 0.0 0.0)
-    (gl:glLightiv gl:GL_LIGHT0 gl:GL_POSITION (lw-light-pos l-win))
+    (gl:clear-color 1.0 1.0 1.0 0.0)
+    (gl:clear :color-buffer-bit :depth-buffer-bit)
+    (gl:push-matrix)
+    (%gl:color-3f 0.0 0.0 0.0)
+    (gl:light :light0 :position (lw-light-pos l-win))
     (dotimes (i (length geometry))
       (gl-code l-win (aref geometry i)))
-    (gl:glPopMatrix)
-    (gl:glxswapbuffers (lw-display l-win) (lw-window l-win))))
+    (gl:pop-matrix)))
 
 (defun gl-mousemotion (l-win x y state)
   (let ((debug nil)
@@ -338,7 +318,7 @@
         (height (lw-height l-win))
         (angle-inc (lw-angle-inc l-win)))
     (when debug (format t "Mouse motion relative (~A ~A) " x y))
-    (unless (zerop (boole boole-and state xlib-gl:Button1Mask))
+    (when (= state 1)
       (when debug (write-line "while button 1 down."))
       (incf (lw-rotate-angle l-win) (* x angle-inc))
       (when (< (lw-rotate-angle l-win) 0d0)
@@ -352,17 +332,14 @@
         (setf (lw-tilt-angle l-win) -89.9d0))
       (when (> (lw-tilt-angle l-win) 89.9d0)
         (setf (lw-tilt-angle l-win) 89.9d0))
-      ;; update viewport and redraw
-      (gl-reshape l-win width height)
-      (gl-draw l-win))
-    (unless (zerop (boole boole-and state xlib-gl:Button2Mask))
+      ;; update viewport
+      (gl-reshape l-win :width width :height height))
+    (when (= state 4)
       ;; button 2: zooming
       (when debug (write-line "while button 2 down."))
       (setf (lw-zoom l-win)
             (* (lw-zoom l-win) (expt (lw-zoom-exp l-win) y)))
-      (gl-reshape l-win width height)
-      (gl-draw l-win))
-    ))
+      (gl-reshape l-win :width width :height height))))
 
 (defun current-clock ()
   (/ (get-internal-real-time)
@@ -377,6 +354,9 @@
       (return-from gl-animate nil))
     ;; if frame delay not reached, return
     (let ((newclock (current-clock)))
+      ;; If the clock is nil, then set the clock to avoid runtime error
+      (when (eq nil (lw-clock l-win))
+	  (setf (lw-clock l-win) newclock))
       (when (< (- newclock (lw-clock l-win)) frame-delay)
         (return-from gl-animate nil))
       (setf (lw-clock l-win) newclock))
@@ -390,202 +370,37 @@
       (create-geometry ls))
     ;; maybe find new limits
     (when (lw-recenter l-win)
-                                        ;(format t "recentering~%")
+      ;; (format t "recentering~%")
       (multiple-value-bind (minv maxv)
           (find-limits (geometry ls))
         (setf (lw-minv l-win) minv)
         (setf (lw-maxv l-win) maxv))
-      (gl-reshape l-win (lw-width l-win) (lw-height l-win)))
-    ;; draw it
-    ;;(gl-draw l-win)))
-    (send-expose-event l-win)))
+      (gl-reshape l-win :width (lw-width l-win) :height (lw-height l-win)))))
 
-(defun gl-keypress (l-win char)
-  (case char
-    ;; A : Toggle animate
-    (#\a (setf (lw-animate l-win) (not (lw-animate l-win))))
-    ;; R : Restart animation
-    (#\r
-     (setf (lw-animate l-win) nil)
-     (setf (lw-frame-list l-win)
-           (copy-tree (lw-original-frame-list l-win)))
-     (let ((ls (lw-ls l-win)))
-       (rewrite ls (extract-framelist (lw-frame-list l-win)))
-       (when (null (geometry ls))
-         (create-geometry ls)))
-     (gl-draw l-win))
-    ;; P : Output povray
-    (#\p
-     (let* ((ls (lw-ls l-win))
-            (class-name (class-name (class-of ls)))
-            (name (string-downcase (symbol-name class-name)))
-            (filename (concatenate 'string name ".pov"))
-            (width (or (lw-cylinder-width l-win) 1.0)))
-       (format t "Writing file '~A'...~%" filename)
-       (output-povray (geometry ls) filename :width-multiplier width
-                      :full-scene nil)
-       (format t "Done.~%")))
-    ;; Q : Quit
-    (#\q :quit)
-    ))
-
-(defun gl-geometry-loop (l-win)
-  (setf (lw-clock l-win) (current-clock))
-  ;; event loop
-  (let ((event (xlib-gl:make-xevent))
-        (xpos nil)
-        (ypos nil)
-        (debug nil)
-        (display (lw-display l-win)))
-    (loop
-       ;; if in animation mode, animate until event occurs
-       (when (lw-animate l-win)
-         (when debug (format t "Animate..."))
-         (loop
-            (gl-animate l-win)
-            (when (or (> (xlib-gl:xpending display) 0)
-                      (not (lw-animate l-win)))
-              (return))))
-       ;; wait for event
-       (when debug (format t "Waiting for event...~%"))
-       (xlib-gl:xnextevent display event)
-       (when debug (format t "...event~%"))
-       (let ((event-type (xlib-gl:xanyevent-type event)))
-         (when debug (format t "Event: ~A~%" event-type))
-         ;; process event
-         (cond
-           ((eq event-type xlib-gl:expose)
-            (when debug (format t "(expose)~%"))
-            ;; expose
-            ;; gobble other expose events
-            (loop (when (zerop (xlib-gl:xpending display))
-                    (return))
-               (xlib-gl:xnextevent display event)
-               (let ((event-type (xlib-gl:xanyevent-type event)))
-                 (unless (eq event-type xlib-gl:expose)
-                   (xlib-gl:xputbackevent display event)
-                   (return))))
-            ;; ... draw after expose
-            (gl-draw l-win))
-           ((eq event-type xlib-gl:configurenotify)
-            ;; resize
-            (when debug (format t "(resize)~%"))
-            (gl-reshape l-win
-                        (xlib-gl:xconfigureevent-width event)
-                        (xlib-gl:xconfigureevent-height event)))
-           ((eq event-type xlib-gl:buttonpress)
-            (when debug (format t "(buttonpress)~%"))
-            ;; button press--save position
-            (let ((button (xlib-gl:xbuttonevent-button event)))
-              (when debug (format t "Button: ~A~%" button))
-              (setq xpos (xlib-gl:xbuttonevent-x_root event))
-              (setq ypos (xlib-gl:xbuttonevent-y_root event))
-              (when debug (format t "pos ~A ~A~%" xpos ypos))
-              (cond
-                ((eq button xlib-gl:button3)
-                 (return)))))
-           ((eq event-type xlib-gl:motionnotify)
-            ;; mouse moved
-            (when debug (format t "(mousemotion)~%"))
-            (let ((new-xpos (xlib-gl:xmotionevent-x_root event))
-                  (new-ypos (xlib-gl:xmotionevent-y_root event))
-                  (state (xlib-gl:xmotionevent-state event)))
-              ;; gobble motion events with same state
-              (loop (when (zerop (xlib-gl:xpending display))
-                      (return))
-                 (xlib-gl:xnextevent display event)
-                 (let ((event-type (xlib-gl:xanyevent-type event)))
-                   ;; if we have the same type of event
-                   (if (and (eq event-type xlib-gl:motionnotify)
-                            (= (xlib-gl:xmotionevent-state event) state))
-                       ;; then gobble it
-                       (progn
-                         (setq new-xpos (xlib-gl:xmotionevent-x_root event))
-                         (setq new-ypos (xlib-gl:xmotionevent-y_root event)))
-                       ;; else put it back and jump out of the loop
-                       (progn
-                         (xlib-gl:xputbackevent display event)
-                         (return)))))
-              (when debug (format t "Motion: state ~A  pos ~A ~A~%"
-                                  state xpos ypos))
-              (when xpos
-                (gl-mousemotion l-win
-                                (- new-xpos xpos) (- new-ypos ypos)
-                                state))
-              (setq xpos new-xpos)
-              (setq ypos new-ypos)))
-           ((eq event-type xlib-gl:keypress)
-            ;; keypress
-            (when debug (format t "(keypress)~%"))
-            (let* ((keysym (xlib-gl:xlookupkeysym event 0))
-                   (char (if (< keysym 256) (code-char keysym) nil)))
-              (when debug (format t "keysym ~A char ~A~%" keysym char))
-              (when (= keysym xlib-gl:XK_Escape)
-                (return))
-              (when char
-                (let ((answer (gl-keypress l-win char)))
-                  (when (eq answer :quit) (return))))))
-           )))
-    (xlib-gl:free-xevent event)))
-
-(defun send-expose-event (l-win)
-  (let ((display (lw-display l-win))
-        (window (lw-window l-win))
-        (event (xlib-gl:make-xexposeevent)))
-    (unwind-protect
-         (progn (xlib-gl:set-xanyevent-type! event xlib-gl:expose)
-                (xlib-gl:set-xanyevent-serial! event 0)
-                (xlib-gl:set-xanyevent-send_event! event 0)
-                (xlib-gl:set-xanyevent-display! event display)
-                (xlib-gl:set-xanyevent-window! event window)
-                (xlib-gl:xsendevent display window 0 xlib-gl:ExposureMask event))
-      (xlib-gl:free-xexposeevent event))))
-
-(defun create-gl-window (display width height name)
-  ;; Create a double buffered, RGBA window
-  (let* ((screen (xlib-gl:XDefaultScreen display))
-         (root (xlib-gl:XRootWindow display screen))
-         ;; array of integers, terminated by "None"
-         (attrib (make-array 11
-                             :element-type
-                             #+cmu '(signed-byte 32) #-cmu 'fixnum
-                             :initial-contents
-                             (list gl:GLX_RGBA
-                                   gl:GLX_RED_SIZE  4 gl:GLX_GREEN_SIZE 4
-                                   gl:GLX_BLUE_SIZE 4 gl:GLX_DEPTH_SIZE 4
-                                   gl:GLX_DOUBLEBUFFER
-                                   xlib-gl:None)))
-         (visinfo (gl:glXChooseVisual display screen attrib)))
-    (when (zerop visinfo)
-      (error
-       "CREATE-GL-WINDOW: Could not get an RGBA, double-buffered visual."))
-    (let ((attr (xlib-gl:make-xsetwindowattributes)))
-      (xlib-gl:set-xsetwindowattributes-background_pixel! attr 0)
-      (xlib-gl:set-xsetwindowattributes-border_pixel! attr 0)
-      (xlib-gl:set-xsetwindowattributes-colormap!
-       attr (xlib-gl:XCreateColormap display root
-                                     (xlib-gl:XVisualInfo-visual visinfo)
-                                     xlib-gl:AllocNone))
-      (xlib-gl:set-xsetwindowattributes-event_mask!
-       attr (+ xlib-gl:StructureNotifyMask xlib-gl:ExposureMask
-               xlib-gl:ButtonPressMask xlib-gl:ButtonReleaseMask
-               xlib-gl:Button1MotionMask xlib-gl:Button2MotionMask
-               xlib-gl:KeyPressMask))
-      (let* ((mask (+ xlib-gl:CWBackPixel xlib-gl:CWBorderPixel
-                      xlib-gl:CWColormap xlib-gl:CWEventMask))
-             (window (xlib-gl:XCreateWindow display root 0 0 width height
-                                            0
-                                            (xlib-gl:XVisualInfo-depth visinfo)
-                                            xlib-gl:InputOutput
-                                            (xlib-gl:XVisualInfo-visual visinfo)
-                                            mask attr))
-             ;;(context (gl:glXCreateContext display visinfo xlib-gl:NULL 1)))
-             (context (setq *glxcontext* (gl:glXCreateContext
-                                          display visinfo xlib-gl:NULL 1))))
-        (gl:glXMakeCurrent display window context)
-        (xlib-gl:XStoreName display window name)
-        (xlib-gl:XMapWindow display window)
-        window))))
+(defun gl-keypress (window scancode state)
+  (when (eq :keydown state)
+    (with-slots (l-window) window
+      (case scancode
+	((:scancode-escape :scancode-q) (kit.sdl2:close-window window))
+	(:scancode-a (setf (lw-animate l-window) (not (lw-animate l-window))))
+	(:scancode-r
+	 (setf (lw-animate l-window) nil)
+	 (setf (lw-frame-list l-window)
+	       (copy-tree (lw-original-frame-list l-window)))
+	 (let ((ls (lw-ls l-window)))
+	   (rewrite ls (extract-framelist (lw-frame-list l-window)))
+	   (when (null (geometry ls))
+	     (create-geometry ls))))
+	(:scancode-p
+	 (let* ((ls (lw-ls l-window))
+		(class-name (class-name (class-of ls)))
+		(name (string-downcase (symbol-name class-name)))
+		(filename (concatenate 'string name ".pov"))
+		(width (or (lw-cylinder-width l-window) 1.0)))
+	   (format t "Writing file '~A'...~%" filename)
+	   (output-povray (geometry ls) filename :width-multiplier width
+						 :full-scene nil)
+	   (format t "Done.~%")))))))
 
 (defun gl-show-geometry (l-win
                          &key
@@ -595,50 +410,27 @@
                            (limits nil)
                            (window-width 400)
                            (window-height 400))
-  (unwind-protect
-       (progn
-         ;; open display/window
-         (unless *display* (setq *display* (xlib-gl:xopendisplay "")))
-         (let ((window (create-gl-window *display* window-width window-height
-                                         "L-Lisp OpenGL window")))
-           ;;    (setq *window* (create-gl-window *display* 300 300
-           ;;                     "L-lisp OpenGL window"))
-           ;; fill in some values in l-win
-           (setf (lw-display l-win) *display*
-                 (lw-window l-win) window))
-         (let ((cyl-width (cylinder-width (lw-ls l-win))))
-           (when cyl-width
-             (setf (lw-cylinder-width l-win)
-                   (coerce cyl-width 'double-float))))
-         (when width
-           (if (eq (lw-line-style l-win) :lines)
-               (setf (lw-line-width l-win) (coerce width 'double-float))
-               (setf (lw-cylinder-width l-win) (coerce width 'double-float))))
-         ;; make sure geometry exists
-         (let ((ls (lw-ls l-win)))
-           (when (null (geometry ls))
-             (create-geometry ls)))
-         ;; initialize limits and OpenGL
-         (gl-initialize l-win)
-         ;; override limits
-         (when limits
-           (flet ((map-double (seq) (map '(simple-array double-float (*))
-                                         #'(lambda (x) (coerce x 'double-float))
-                                         seq)))
-             (setf (lw-minv l-win) (map-double (first limits))
-                   (lw-maxv l-win) (map-double (second limits)))))
-         ;; start event loop
-         (gl-geometry-loop l-win))
-    ;; always cleanup and exit
-    (let ((event (xlib-gl:make-xevent))
-          (display (lw-display l-win))
-          (window (lw-window l-win)))
-      (gl:glXDestroyContext display *glxcontext*)
-      (xlib-gl:xdestroywindow display window)
-      (loop (when (zerop (xlib-gl:xpending display)) (return))
-         (xlib-gl:xnextevent display event))
-      (xlib-gl:free-xevent event))))
-
+  (progn
+    (let ((cyl-width (cylinder-width (lw-ls l-win))))
+      (when cyl-width
+        (setf (lw-cylinder-width l-win)
+              (coerce cyl-width 'double-float))))
+    (when width
+      (if (eq (lw-line-style l-win) :lines)
+          (setf (lw-line-width l-win) (coerce width 'double-float))
+          (setf (lw-cylinder-width l-win) (coerce width 'double-float))))
+    ;; make sure geometry exists
+    (let ((ls (lw-ls l-win)))
+      (when (null (geometry ls))
+        (create-geometry ls)))
+    ;; override limits
+    (when limits
+      (flet ((map-double (seq) (map '(simple-array double-float (*))
+                                    #'(lambda (x) (coerce x 'double-float))
+                                    seq)))
+        (setf (lw-minv l-win) (map-double (first limits))
+              (lw-maxv l-win) (map-double (second limits)))))
+    (l-lisp-window-preview :l-window l-win :window-width window-width :window-height window-height)))
 
 (defun gl-animation (ls
                      &key
@@ -688,3 +480,39 @@
                 :frames (list depth)
                 :window-width window-width
                 :window-height window-height))
+
+;;;; SDL2
+(defclass l-lisp-window (kit.sdl2:gl-window)
+  ((l-window
+    :initarg :l-window
+    :accessor l-window)))
+
+(defmethod initialize-instance :after ((window l-lisp-window) &key &allow-other-keys)
+  (setf (kit.sdl2:idle-render window) t)
+  (with-slots (l-window) window
+    (gl-initialize l-window)
+    (gl-reshape l-window :width (kit.sdl2:window-width window) :height (kit.sdl2:window-height window))))
+
+(kit.sdl2:define-start-function l-lisp-window-preview (&key (l-window nil) (window-width 400) (window-height 400))
+  (make-instance 'l-lisp-window :l-window l-window :title "L-Lisp" :w window-width :h window-height :resizable t))
+
+(defmethod kit.sdl2:render ((window l-lisp-window))
+  ;; Your GL context is automatically active.  FLUSH and
+  ;; SDL2:GL-SWAP-WINDOW are done implicitly by GL-WINDOW
+  ;; after RENDER.
+  (with-slots (l-window) window
+    (when (lw-animate l-window)
+      (gl-animate l-window))
+    (gl-draw l-window)))
+
+(defmethod kit.sdl2:keyboard-event ((window l-lisp-window) state timestamp repeat-p keysym)
+  (let ((scancode (sdl2:scancode keysym)))
+    (gl-keypress window scancode state)))
+
+(defmethod kit.sdl2:window-event ((window l-lisp-window) (type (eql :size-changed)) timestamp data1 data2)
+  (with-slots (l-window) window
+    (gl-reshape l-window :width data1 :height data2)))
+
+(defmethod kit.sdl2:mousemotion-event ((window l-lisp-window) timestamp button-mask x y xrel yrel)
+  (with-slots (l-window) window
+    (gl-mousemotion l-window xrel yrel button-mask)))

@@ -303,20 +303,11 @@ Output:
       (let* ((xrel-zero (/ (- new-xmin) new-xsize))
              (ps-xzero (* xrel-zero ps-xsize)))
         (format file "~,9F ~,9F moveto ~,9F ~,9F lineto stroke~%"
-                ps-xzero 0 ps-xzero ps-ysize))
-      )))
+                ps-xzero 0 ps-xzero ps-ysize)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; opengl/xlib stuff below
+;; SDL and OpenGL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#+allegro
-(eval-when (:compile-toplevel :load-toplevel)
-  (require :gl)
-  (require :xlib))
-
-(defvar *display* nil)
-(defvar *window*)
-
 (defstruct (spline-window (:conc-name sw-))
   ;; slots that should be initialized by EDIT-SPLINE
   spline
@@ -338,47 +329,52 @@ Output:
   width
   )
 
-(defun create-gl-window (display width height name)
-  ;; Create a double buffered, RGBA window
-  (let* ((screen (xlib-gl:XDefaultScreen display))
-         (root (xlib-gl:XRootWindow display screen))
-         ;; array of integers, terminated by "None"
-         (attrib (make-array 9
-                             :element-type
-                             #+cmu '(signed-byte 32) #-cmu 'fixnum
-                             :initial-contents
-                             (list gl:GLX_RGBA gl:GLX_RED_SIZE 1
-                                   gl:GLX_GREEN_SIZE 1 gl:GLX_BLUE_SIZE 1
-                                   gl:GLX_DOUBLEBUFFER xlib-gl:None)))
-         (visinfo (gl:glXChooseVisual display screen attrib)))
-    (when (zerop visinfo)
-      (error
-       "CREATE-GL-WINDOW: Could not get an RGBA, double-buffered visual."))
-    (let ((attr (xlib-gl:make-xsetwindowattributes)))
-      (xlib-gl:set-xsetwindowattributes-background_pixel! attr 0)
-      (xlib-gl:set-xsetwindowattributes-border_pixel! attr 0)
-      (xlib-gl:set-xsetwindowattributes-colormap!
-       attr (xlib-gl:XCreateColormap display root
-                                     (xlib-gl:XVisualInfo-visual visinfo)
-                                     xlib-gl:AllocNone))
-      (xlib-gl:set-xsetwindowattributes-event_mask!
-       attr (+ xlib-gl:StructureNotifyMask xlib-gl:ExposureMask
-               xlib-gl:ButtonPressMask xlib-gl:ButtonReleaseMask
-               xlib-gl:Button1MotionMask xlib-gl:Button2MotionMask
-               xlib-gl:KeyPressMask))
-      (let* ((mask (+ xlib-gl:CWBackPixel xlib-gl:CWBorderPixel
-                      xlib-gl:CWColormap xlib-gl:CWEventMask))
-             (window (xlib-gl:XCreateWindow display root 0 0 width height
-                                            0
-                                            (xlib-gl:XVisualInfo-depth visinfo)
-                                            xlib-gl:InputOutput
-                                            (xlib-gl:XVisualInfo-visual visinfo)
-                                            mask attr))
-             (context (gl:glXCreateContext display visinfo NULL 1)))
-        (gl:glXMakeCurrent display window context)
-        (xlib-gl:XStoreName display window name)
-        (xlib-gl:XMapWindow display window)
-        window))))
+(defclass l-lisp-spline-window (kit.sdl2:gl-window)
+  ((spline-window
+    :initarg :spline-window
+    :accessor spline-window)
+   (spline
+    :initarg :spline
+    :accessor spline)
+   (filename
+    :initarg :filename
+    :accessor filename)
+   (eps-filename
+    :initarg :eps-filename
+    :accessor eps-filename)))
+
+(defmethod initialize-instance :after ((window l-lisp-spline-window) &key &allow-other-keys)
+  (setf (kit.sdl2:idle-render window) t)
+  (with-slots (spline-window) window
+    (spline-reshape spline-window (kit.sdl2:window-width window) (kit.sdl2:window-height window))))
+
+(kit.sdl2:define-start-function create-spline-window (&key (spline-window nil) (width 500) (height 300) (filename nil) (eps-filename nil))
+  (make-instance 'l-lisp-spline-window :spline-window spline-window :w width :h height :filename filename :eps-filename eps-filename))
+
+(defmethod kit.sdl2:close-window :before ((window l-lisp-spline-window))
+  (let ((debug t))
+    (when debug (write-line "Closing window")))
+  (with-slots (filename eps-filename spline-window) window
+    (with-slots (spline) spline-window
+      ;; maybe ouput to file
+      (when filename
+	(if (sw-save-when-quit spline-window)
+	    (progn (format t "Writing to file '~A'~%" filename)
+		   (output-spline spline filename))
+	    (format t "Quitting without saving.~%")))
+      ;; maybe output EPS file
+      (when eps-filename
+	(if (sw-save-when-quit spline-window)
+	    (progn (format t "Writing EPS file '~A'~%" eps-filename)
+		   (output-spline-to-eps spline eps-filename))
+	    (format t "Not writing EPS file.~%")))
+      ;; TODO: How to return the spline when edit-spline is being called?
+      ;; Should it be a blocking call when creating and setting up the windows for editing the spline?
+      spline)))
+
+(defmethod kit.sdl2:render ((window l-lisp-spline-window))
+  (with-slots (spline-window) window
+    (spline-draw spline-window)))
 
 (defun window-coordinates (spline-window x y)
   (let* ((left (sw-left spline-window))
@@ -433,16 +429,16 @@ Output:
           (sw-top spline-window) top
           (sw-width spline-window) width
           (sw-height spline-window) height)
-    (gl:glViewport 0 0 width height)
-    (gl:glMatrixMode gl:GL_PROJECTION)
-    (gl:glLoadIdentity)
+    (gl:viewport 0 0 width height)
+    (gl:matrix-mode :projection)
+    (gl:load-identity)
     ;;(gl:gluOrtho2D -1d0 5d0 -1d0 5d0)
-    (gl:gluOrtho2D (coerce left 'double-float)
+    (glu:ortho-2d (coerce left 'double-float)
                    (coerce right 'double-float)
                    (coerce bottom 'double-float)
                    (coerce top 'double-float))
-    (gl:glMatrixMode gl:GL_MODELVIEW)
-    (gl:glLoadIdentity)))
+    (gl:matrix-mode :modelview)
+    (gl:load-identity)))
 
 (defmacro convert-to (type &body places)
   `(progn
@@ -455,29 +451,29 @@ Output:
         (top (sw-top spline-window))
         (bottom (sw-bottom spline-window)))
     (convert-to single-float left right top bottom grid r g b)
-    (gl:glColor3f r g b)
-    (gl:glBegin gl:GL_LINES)
+    (%gl:color-3f r g b)
+    (gl:begin :lines)
     (do ((x-val 0.0 (+ x-val grid)))
         ((> x-val right))
-      (gl:glVertex2f x-val top)
-      (gl:glVertex2f x-val bottom))
+      (%gl:vertex-2f x-val top)
+      (%gl:vertex-2f x-val bottom))
     (do ((x-val (- grid) (- x-val grid)))
         ((< x-val left))
-      (gl:glVertex2f x-val top)
-      (gl:glVertex2f x-val bottom))
+      (%gl:vertex-2f x-val top)
+      (%gl:vertex-2f x-val bottom))
     (do ((y-val 0.0 (+ y-val grid)))
         ((> y-val top))
-      (gl:glVertex2f left y-val)
-      (gl:glVertex2f right y-val))
+      (%gl:vertex-2f left y-val)
+      (%gl:vertex-2f right y-val))
     (do ((y-val (- grid) (- y-val grid)))
         ((< y-val bottom))
-      (gl:glVertex2f left y-val)
-      (gl:glVertex2f right y-val))
-    (gl:glEnd)))
+      (%gl:vertex-2f left y-val)
+      (%gl:vertex-2f right y-val))
+    (gl:end)))
 
 (defun spline-draw (spline-window)
-  (gl:glClearColor 1.0 1.0 1.0 1.0)
-  (gl:glClear gl:GL_COLOR_BUFFER_BIT)
+  (gl:clear-color 1.0 1.0 1.0 1.0)
+  (gl:clear :color-buffer-bit)
   ;; Grid
   (let ((grid (sw-grid spline-window))
         (strong-grid (sw-strong-grid spline-window)))
@@ -487,12 +483,12 @@ Output:
       (draw-grid spline-window strong-grid 0.6 0.6 0.6)))
   ;; Axes
   (when (sw-draw-axes spline-window)
-    (gl:glColor3f 0.0 0.0 0.0)
-    (gl:glBegin gl:GL_LINES)
-    (gl:glVertex2f (coerce (sw-left spline-window) 'single-float) 0.0)
-    (gl:glVertex2f (coerce (sw-right spline-window) 'single-float) 0.0)
-    (gl:glVertex2f 0.0 (coerce (sw-top spline-window) 'single-float))
-    (gl:glVertex2f 0.0 (coerce (sw-bottom spline-window) 'single-float))
+    (%gl:color-3f 0.0 0.0 0.0)
+    (gl:begin :lines)
+    (%gl:vertex-2f (coerce (sw-left spline-window) 'single-float) 0.0)
+    (%gl:vertex-2f (coerce (sw-right spline-window) 'single-float) 0.0)
+    (%gl:vertex-2f 0.0 (coerce (sw-top spline-window) 'single-float))
+    (%gl:vertex-2f 0.0 (coerce (sw-bottom spline-window) 'single-float))
     (let* ((left (sw-left spline-window))
            (right (sw-right spline-window))
            (top (sw-top spline-window))
@@ -501,19 +497,19 @@ Output:
            (arrow-size (* pixel-size 5)))
       (convert-to single-float right top arrow-size)
       ;; arrows
-      (gl:glVertex2f right 0.0)
-      (gl:glVertex2f (- right arrow-size) arrow-size)
-      (gl:glVertex2f right 0.0)
-      (gl:glVertex2f (- right arrow-size) (- arrow-size))
-      (gl:glVertex2f 0.0 top)
-      (gl:glVertex2f arrow-size (- top arrow-size))
-      (gl:glVertex2f 0.0 top)
-      (gl:glVertex2f (- arrow-size) (- top arrow-size))
+      (%gl:Vertex-2f right 0.0)
+      (%gl:vertex-2f (- right arrow-size) arrow-size)
+      (%gl:vertex-2f right 0.0)
+      (%gl:vertex-2f (- right arrow-size) (- arrow-size))
+      (%gl:vertex-2f 0.0 top)
+      (%gl:vertex-2f arrow-size (- top arrow-size))
+      (%gl:vertex-2f 0.0 top)
+      (%gl:vertex-2f (- arrow-size) (- top arrow-size))
       )
-    (gl:glEnd))
+    (gl:end))
   ;; Spline
-  (gl:glColor3f 0.0 0.0 1.0)
-  (gl:glLineWidth 1.0)
+  (%gl:color-3f 0.0 0.0 1.0)
+  (gl:line-width 1.0)
   (let* ((spline (sw-spline spline-window))
          (steps (sw-steps spline-window))
          (start (spline-min-x spline))
@@ -522,27 +518,60 @@ Output:
          (x-step (/ (- end start) (1- steps)))
          (y-values (spline-values spline
                                   :start start :end end :steps steps)))
-    (gl:glBegin gl:GL_LINE_STRIP)
+    (gl:begin :line-strip)
     (dotimes (i steps)
       (let ((xpos (+ start (* i x-step)))
             (ypos (svref y-values i)))
-        (gl:glVertex2f (coerce xpos 'single-float)
+        (%gl:vertex-2f (coerce xpos 'single-float)
                        (coerce ypos 'single-float))))
-    (gl:glEnd)
+    (gl:end)
     (when (sw-draw-points spline-window)
-      (gl:glPointSize 5.0)
-      (gl:glBegin gl:GL_POINTS)
+      (gl:point-size 5.0)
+      (gl:begin :points)
       (let ((y (spline-y spline))
             (marked-point (sw-marked-point spline-window)))
         (dotimes (i (length x))
           (if (and marked-point (= marked-point i))
-              (gl:glColor3f 0.0 1.0 0.0)
-              (gl:glColor3f 0.0 0.0 0.0))
-          (gl:glVertex2f (coerce (svref x i) 'single-float)
+              (%gl:color-3f 0.0 1.0 0.0)
+              (%gl:color-3f 0.0 0.0 0.0))
+          (%gl:vertex-2f (coerce (svref x i) 'single-float)
                          (coerce (svref y i) 'single-float))))
-      (gl:glEnd)))
-  ;; swap buffers
-  (gl:glXSwapBuffers *display* (sw-window spline-window)))
+      (gl:end))))
+
+(defun spline-delete-point (spline-window)
+  ;; remove marked point
+  (let ((i (sw-marked-point spline-window)))
+    (when i
+      (let* ((spline (sw-spline spline-window))
+             (x (spline-x spline))
+             (y (spline-y spline))
+             (n (length x)))
+        (if (<= n 2)
+            (warn "Cannot delete; there must be at least two points.")
+            (progn
+              (setf (spline-x spline) (concatenate 'vector
+                                                   (subseq x 0 i)
+                                                   (subseq x (1+ i) n))
+                    (spline-y spline) (concatenate 'vector
+                                                   (subseq y 0 i)
+                                                   (subseq y (1+ i) n)))
+              (recalculate-natural-cubic-spline spline)
+              (setf (sw-marked-point spline-window) nil)))))))
+
+(defun spline-keypress (window scancode state)
+  (when (eq :keydown state)
+    (with-slots (spline-window) window
+      (case scancode
+	(:scancode-escape
+	 (setf (sw-save-when-quit spline-window) nil)
+	 (kit.sdl2:close-window window))
+	((:scancode-delete :scancode-d)
+	 (spline-delete-point spline-window))
+	(:scancode-q
+	 (kit.sdl2:close-window window))
+	(:scancode-p
+	 (setf (sw-draw-points spline-window)
+	       (not (sw-draw-points spline-window))))))))
 
 (defun spline-button1motion (spline-window xpos ypos)
   (let ((marked-point (sw-marked-point spline-window)))
@@ -563,8 +592,7 @@ Output:
           ;; update and draw spline
           (setf (svref x marked-point) real-x
                 (svref y marked-point) real-y)
-          (recalculate-natural-cubic-spline (sw-spline spline-window))
-          (spline-draw spline-window))))))
+          (recalculate-natural-cubic-spline (sw-spline spline-window)))))))
 
 (defun spline-button2click (spline-window xpos ypos)
   (multiple-value-bind (real-x real-y)
@@ -588,8 +616,7 @@ Output:
                   (concatenate
                    'vector (subseq y 0 pos) (vector real-y) (subseq y pos)))))
       (recalculate-natural-cubic-spline spline)
-      (setf (sw-marked-point spline-window) pos)
-      (spline-draw spline-window))))
+      (setf (sw-marked-point spline-window) pos))))
 
 (defun spline-button1click (spline-window xpos ypos)
   (let* ((spline (sw-spline spline-window))
@@ -605,122 +632,38 @@ Output:
                    (<= (abs (- win-ypos ypos))
                        pixel-distance))
           (setf (sw-marked-point spline-window) i)
-          (return))))
-    (spline-draw spline-window)))
+          (return))))))
 
-(defun spline-delete-point (spline-window)
-  ;; remove marked point
-  (let ((i (sw-marked-point spline-window)))
-    (when i
-      (let* ((spline (sw-spline spline-window))
-             (x (spline-x spline))
-             (y (spline-y spline))
-             (n (length x)))
-        (if (<= n 2)
-            (warn "Cannot delete; there must be at least two points.")
-            (progn
-              (setf (spline-x spline) (concatenate 'vector
-                                                   (subseq x 0 i)
-                                                   (subseq x (1+ i) n))
-                    (spline-y spline) (concatenate 'vector
-                                                   (subseq y 0 i)
-                                                   (subseq y (1+ i) n)))
-              (recalculate-natural-cubic-spline spline)
-              (setf (sw-marked-point spline-window) nil)
-              (spline-draw spline-window)))))))
+(defmethod kit.sdl2:mousebutton-event ((window l-lisp-spline-window) state timestamp button x y)
+  (when (eql :mousebuttondown state)
+    (with-slots (spline-window) window
+      (let ((debug t))
+	(write-line (format nil "button state: ~A and button ~A" state button))
+	(when (= button 1)
+	  (when debug (write-line "Clicked button 1"))
+	  (spline-button1click spline-window x y))
+	(when (= button 3)
+	  (when debug (write-line "Clicked button 3"))
+	  (spline-button2click spline-window x y))
+	;; When button 3, then quit? (or just don't process it?)
+	))))
 
-(defun spline-keypress (spline-window keysym char)
-  (cond ((= keysym xlib-gl:XK_Escape)
-         (setf (sw-save-when-quit spline-window) nil)
-         :quit)
-        ((= keysym xlib-gl:XK_Delete)
-         (spline-delete-point spline-window))
-        (t
-         (case char
-           (#\q
-            :quit)
-           (#\d
-            (spline-delete-point spline-window))
-           (#\p
-            (setf (sw-draw-points spline-window)
-                  (not (sw-draw-points spline-window)))
-            (spline-draw spline-window))))))
+(defmethod kit.sdl2:keyboard-event ((window l-lisp-spline-window) state timestamp repeat-p keysym)
+  (let ((scancode (sdl2:scancode keysym)))
+    (spline-keypress window scancode state)))
 
-(defun spline-event-loop (display spline-window)
-  (let ((event (xlib-gl:make-xevent))
-        (debug nil))
-    (loop
-       (when debug (format t "Waiting for event...~%"))
-       (xlib-gl:xnextevent display event)
-       (let ((event-type (xlib-gl:xanyevent-type event)))
-         (when debug (format t "Event: ~A~%" event-type))
-         (cond ((eq event-type xlib-gl:expose)
-                ;; gobble other expose events
-                (loop (when (zerop (xlib-gl:xpending display))
-                        (return))
-                   (xlib-gl:xnextevent display event)
-                   (unless (eq (xlib-gl:xanyevent-type event)
-                               xlib-gl:expose)
-                     (xlib-gl:xputbackevent display event)
-                     (return)))
-                ;; draw
-                (spline-draw spline-window))
-               ((eq event-type xlib-gl:configurenotify)
-                ;; reshape
-                (spline-reshape spline-window
-                                (xlib-gl:xconfigureevent-width event)
-                                (xlib-gl:xconfigureevent-height event)))
-               ((eq event-type xlib-gl:buttonpress)
-                (let ((button (xlib-gl:xbuttonevent-button event)))
-                  (when debug (format t "Button: ~A~%" button))
-                  (let ((xpos (xlib-gl:xbuttonevent-x event))
-                        (ypos (xlib-gl:xbuttonevent-y event)))
-                    (cond ((eq button xlib-gl:button1)
-                           ;; Mark/unmark point
-                           (spline-button1click spline-window xpos ypos))
-                          ((eq button xlib-gl:button2)
-                           ;; add new point
-                           (spline-button2click spline-window xpos ypos))
-                          ((eq button xlib-gl:button3)
-                           ;; quit
-                           (return))))))
-               ((eq event-type xlib-gl:motionnotify)
-                ;; mouse motion
-                (let ((state (xlib-gl:xmotionevent-state event)))
-                  ;; gobble motion events with same state
-                  (loop (when (zerop (xlib-gl:xpending display))
-                          (return))
-                     (xlib-gl:xnextevent display event)
-                     (let ((event-type (xlib-gl:xanyevent-type event)))
-                       (unless (and (eq event-type xlib-gl:motionnotify)
-                                    (= (xlib-gl:xmotionevent-state event)
-                                       state))
-                         (xlib-gl:xputbackevent display event)
-                         (return))))
-                  (let ((xpos (xlib-gl:xmotionevent-x event))
-                        (ypos (xlib-gl:xmotionevent-y event)))
-                    (when debug
-                      (format t "Motion with state ~A and pos ~A ~A~%"
-                              xpos ypos))
-                    (unless (zerop (boole boole-and state xlib-gl:Button1Mask))
-                      (spline-button1motion spline-window xpos ypos)))))
-               ((eq event-type xlib-gl:keypress)
-                ;; keypress
-                (let* ((keysym (xlib-gl:xlookupkeysym event 0))
-                       (char (if (< keysym 256) (code-char keysym) nil))
-                       (answer (spline-keypress spline-window keysym char)))
-                  (when (eq answer :quit) (return))))
-               )))
-    (xlib-gl:free-xevent event)))
+(defmethod kit.sdl2:mousemotion-event ((window l-lisp-spline-window) timestamp button-mask x y xrel yrel)
+  (with-slots (spline-window) window
+    (when (= button-mask 1)
+      (spline-button1motion spline-window x y))))
+
+(defmethod kit.sdl2:window-event ((window l-lisp-spline-window) (type (eql :size-changed)) timestamp data1 data2)
+  (with-slots (spline-window) window
+    (spline-reshape spline-window data1 data2)))
 
 (defun edit-spline (&key (spline nil) (filename nil) (eps-filename nil)
                       (steps 100) (grid 0.1) (strong-grid 1.0)
                       (draw-points t) (draw-axes t))
-  ;; open display (if not already open), and create window
-  (unless *display*
-    (setq *display* (xlib-gl:xopendisplay "")))
-  (setq *window* (create-gl-window *display* 500 300
-                                   "L-Lisp Spline editor"))
   (unless spline
     ;; read from file if filename is given, otherwise create a default one
     (setq spline
@@ -731,37 +674,10 @@ Output:
                      (natural-cubic-spline '#(0.0 1.0) '#(0.0 0.0))))))
   (let ((spline-window (make-spline-window
                         :spline spline
-                        :window *window*
                         :steps steps
                         :grid grid
                         :strong-grid strong-grid
                         :draw-points draw-points
                         :draw-axes draw-axes)))
-    (spline-event-loop *display* spline-window)
-    ;; cleanup
-    (xlib-gl:xdestroywindow *display* *window*)
-    (let ((event (xlib-gl:make-xevent)))
-      (loop (when (zerop (xlib-gl:xpending *display*)) (return))
-         (xlib-gl:xnextevent *display* event))
-      (xlib-gl:free-xevent event))
-    ;; maybe ouput to file
-    (when filename
-      (if (sw-save-when-quit spline-window)
-          (progn (format t "Writing to file '~A'~%" filename)
-                 (output-spline spline filename))
-          (format t "Quitting without saving.~%")))
-    ;; maybe output EPS file
-    (when eps-filename
-      (if (sw-save-when-quit spline-window)
-          (progn (format t "Writing EPS file '~A'~%" eps-filename)
-                 (output-spline-to-eps spline eps-filename))
-          (format t "Not writing EPS file.~%")))
-    spline))
-
-(defun cleanup ()
-  (xlib-gl:xdestroywindow *display* *window*)
-  (let ((event (xlib-gl:make-xevent)))
-    (loop (when (zerop (xlib-gl:xpending *display*)) (return))
-       (xlib-gl:xnextevent *display* event))
-    (xlib-gl:free-xevent event))
-  )
+    (create-spline-window :spline-window spline-window :width 500 :height 300 :filename filename :eps-filename eps-filename)
+    ))

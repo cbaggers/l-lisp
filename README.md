@@ -1,16 +1,24 @@
-# Hi
+# L-Lisp
 
-This project inspired me before I knew what lisp was, I'd love to get it running on top of some of the more portable libraries the lisp games folks are using these days. I'm not actively working on this but I have just pushed it here as a 'one day' project or maybe just to look at it and smile.
-
-Currently all I have tried (on linux) was:
+Load the package e.g. ```(ql:quickload :l-lisp)``` and switch to the lsx namespace/package ```(in-package :lsx)```
 
 ```
 LSX> (timed-preview (make-instance 'gtree))
+
+LSX> (gl-preview (make-instance 'gtree))
+
+LSX> (gl-preview (make-instance 'gtree) :depth 6)
+
+LSX> (gl-animation (make-instance 'climbing1))
+
+LSX> (gl-animation (make-instance 'gtree) :recenter t)
 ```
 
-and it worked!
-
-I have commented out the gl stuff for now so this is asdf loadable
+## Examples known to not (currently) work
+- fibonacci
+- signal-test
+- leaf
+- tropism2 (and the examples that are inheriting from tropism2)
 
 # Original Docs (markdownified)
 

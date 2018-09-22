@@ -9,15 +9,17 @@
   :serial t
   :depends-on (#:cffi
                #:uiop
-               #:cl-opengl)
+               #:cl-opengl
+               #:cl-glu
+               #:sdl2
+               #:sdl2kit)
   :components ((:file "packages")
                (:file "buffer")
                (:file "nrandom")
                (:file "turtle")
                (:file "lsystem")
-               ;; (:file "opengl")
+               (:file "opengl")
                (:file "examples")
-               ;; (:file "splineed")
-               ;; (:file "advanced-examples")
-               ;; (:file "demo")
-               ))
+               (:file "splineed")
+               (:file "advanced-examples")
+               (:file "demo")))
